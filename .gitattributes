@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.pbxproj text eol=lf
+*.xcscheme text eol=lf
+*.png binary
+*.jpg binary
+*.m4a binary
+*.caf binary
