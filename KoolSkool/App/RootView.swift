@@ -1,32 +1,84 @@
 import SwiftUI
 
-/// Milestone 1 placeholder.
+/// Switches between the three states of the focus flow and owns the scene-phase
+/// wiring the engine depends on.
 ///
-/// This is not a feature screen. It exists to prove the stack end to end — the
-/// container opens, the repositories answer, the design system renders — and it
-/// gets replaced by the Today screen in Milestone 3.
+/// The home branch is still a placeholder — the real Today screen, with three
+/// musts and the next tiny step, arrives in Milestone 3.
 struct RootView: View {
-    @Environment(AppEnvironment.self) private var appEnvironment
-    @State private var model: RootStatusModel?
+    @Environment(AppEnvironment.self) private var app
+    @Environment(\.scenePhase) private var scenePhase
+
+    @State private var isPresentingSetup = false
+    @State private var statusModel: RootStatusModel?
+
+    private var engine: FocusEngine { app.focusEngine }
 
     var body: some View {
+        content
+            .ksAnimation(KSAnimation.gentle, value: engine.status)
+            .sheet(isPresented: $isPresentingSetup) { setupSheet }
+            .task { await engine.restore() }
+            .onChange(of: scenePhase) { _, phase in
+                Task { await engine.scenePhaseChanged(to: phase) }
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if engine.status == .running, let snapshot = engine.snapshot {
+            ActiveSessionView(snapshot: snapshot, taskTitle: nil) {
+                Task { await engine.endEarly() }
+            }
+            .ksTransition(.opacity)
+        } else if engine.status == .finished, let finished = engine.finishedSession {
+            SessionCompleteView(
+                session: finished,
+                offersExtension: engine.offersExtension,
+                extensionMode: .classicPomodoro,
+                onContinue: { mode in Task { await engine.continueSession(as: mode) } },
+                onDone: { engine.dismissCompletion() }
+            )
+            .ksTransition(.opacity)
+        } else {
+            home
+        }
+    }
+
+    private var setupSheet: some View {
+        NavigationStack {
+            SessionSetupView(
+                settings: app.settings,
+                onStart: { plan in
+                    isPresentingSetup = false
+                    Task { await engine.start(plan) }
+                },
+                onCancel: { isPresentingSetup = false }
+            )
+        }
+    }
+
+    // MARK: Home
+
+    private var home: some View {
         NavigationStack {
             KSScreen(state: .ready) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: KSSpacing.lg) {
                         header
+                        startCard
 
-                        if let warning = appEnvironment.storeWarning {
+                        if let warning = app.storeWarning {
                             warningCard(warning)
                         }
 
                         progressCard
 
-                        if let model {
-                            StoreCheckCard(model: model, clock: appEnvironment.clock)
+                        if let statusModel {
+                            StoreCheckCard(model: statusModel, clock: app.clock)
                         }
 
-                        navigationCard
+                        galleryCard
                     }
                     .padding(.vertical, KSSpacing.lg)
                 }
@@ -35,8 +87,8 @@ struct RootView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .task {
-            let model = model ?? RootStatusModel(repositories: appEnvironment.repositories)
-            self.model = model
+            let model = statusModel ?? RootStatusModel(repositories: app.repositories)
+            statusModel = model
             await model.load()
         }
     }
@@ -47,11 +99,33 @@ struct RootView: View {
                 .ksFont(KSFont.title)
                 .foregroundStyle(KSColor.textPrimary)
 
-            Text("Milestone 1 — skeleton, design system, models, repositories.")
+            Text("Milestone 2 — the focus engine. The Today screen lands next.")
                 .ksFont(KSFont.caption)
                 .foregroundStyle(KSColor.textSecondary)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// Just Start gets the primary button and asks nothing at all — no mode, no
+    /// intent, no rating. Every question here is another chance to bounce, and
+    /// the whole pitch of the mode is that starting costs nothing.
+    private var startCard: some View {
+        VStack(spacing: KSSpacing.sm) {
+            KSPrimaryButton(title: "Just start", systemImage: "bolt.fill") {
+                let plan = SessionPlan.make(mode: .justStart, settings: app.settings)
+                Task { await engine.start(plan) }
+            }
+
+            Text("Five minutes. Quit after if you want — it still counts.")
+                .ksFont(KSFont.caption)
+                .foregroundStyle(KSColor.textTertiary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+
+            KSSecondaryButton(title: "Choose a mode", systemImage: "slider.horizontal.3") {
+                isPresentingSetup = true
+            }
+        }
     }
 
     private func warningCard(_ warning: String) -> some View {
@@ -73,28 +147,24 @@ struct RootView: View {
                     .foregroundStyle(KSColor.textPrimary)
 
                 HStack(spacing: KSSpacing.xs) {
-                    KSTag(text: "Level \(appEnvironment.progress.level)", systemImage: "chart.line.uptrend.xyaxis")
-                    KSTag(text: "\(appEnvironment.progress.coins) coins", systemImage: "circle.hexagongrid.fill", state: .breakTime)
-                    KSTag(text: "Day \(appEnvironment.progress.currentStreak)", systemImage: "flame.fill", state: .overrun)
+                    KSTag(text: "Level \(app.progress.level)", systemImage: "chart.line.uptrend.xyaxis")
+                    KSTag(text: "\(app.progress.coins) coins", systemImage: "circle.hexagongrid.fill", state: .breakTime)
+                    KSTag(text: "Day \(app.progress.currentStreak)", systemImage: "flame.fill", state: .overrun)
                 }
 
-                Text("\(appEnvironment.progress.xpIntoCurrentLevel) / \(appEnvironment.progress.xpNeededForNextLevel) XP to level \(appEnvironment.progress.level + 1)")
+                Text("XP and streaks start moving in Milestone 4.")
                     .ksFont(KSFont.caption)
                     .foregroundStyle(KSColor.textSecondary)
             }
         }
     }
 
-    private var navigationCard: some View {
+    private var galleryCard: some View {
         KSCard {
             VStack(alignment: .leading, spacing: KSSpacing.sm) {
                 Text("Design system")
                     .ksFont(KSFont.headline)
                     .foregroundStyle(KSColor.textPrimary)
-
-                Text("Every colour, type size, and component in one place. Check it in both appearances and at the largest Dynamic Type size.")
-                    .ksFont(KSFont.caption)
-                    .foregroundStyle(KSColor.textSecondary)
 
                 NavigationLink {
                     DesignSystemGallery()
@@ -113,7 +183,7 @@ struct RootView: View {
 }
 
 /// The repository round-trip check. Reads counts through the protocols, exactly
-/// the way a real feature will.
+/// the way a real feature does.
 private struct StoreCheckCard: View {
     let model: RootStatusModel
     let clock: any DateProvider

@@ -12,11 +12,13 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 1 complete — project skeleton, design system, data model, repository layer.**
+**Milestone 2 complete — focus engine, active session screen, background-safe timer.**
 
-There is no feature code yet. `RootView` is a placeholder that proves the stack boots and links to a design system gallery.
+You can start a session, watch it run, end it early, and roll a Just Start straight into a Pomodoro. Sessions survive backgrounding, force quit, and device restart.
 
-Remaining milestones, in order: focus engine → tasks → rewards → time blindness → body doubling → check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
+The home screen is still a placeholder — the real Today screen arrives in Milestone 3.
+
+Remaining milestones, in order: tasks → rewards → time blindness → body doubling → check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
 
 ---
 
@@ -36,6 +38,8 @@ The project uses Xcode 16 file-system-synchronized groups, so **new files are pi
 KoolSkool/
 ├── App/            Composition root, root view, the view-model pattern
 ├── DesignSystem/   Colour, type, spacing, haptics, animation, components
+├── Features/
+│   └── Focus/      The session engine, its pure decision logic, and its screens
 ├── Domain/         Pure Sendable value types. No SwiftData, no SwiftUI.
 │   ├── Core/       Clock, sync metadata, session modes, shared enums
 │   ├── Entities/   The eleven entities, as structs
@@ -80,9 +84,21 @@ No `Date()` in logic. Streaks, musts, reflections, and the session timer all tak
 
 ### Timer correctness
 
-`FocusSession` stores `startedAt` and `plannedDuration` and computes elapsed time from wall-clock. Nothing decrements. This is what makes a session survive backgrounding, force quit, and restart — and `SessionRepository.activeSession()` is the recovery path.
+**Nothing counts down.** The only durable facts are `startedAt` and `plannedDuration`, both written to the store before the first frame renders. Everything on screen is recomputed from those against the wall clock, so a missed tick, a killed app, or a rebooted device cannot make the timer wrong — there is no accumulated state to lose.
 
-Milestone 2 builds the engine on top of this. The maths is already under test.
+`SessionSnapshot` does that derivation and holds no state. `FocusEngine` owns the running session; its tick loop only refreshes the display and notices the planned end, and `tick()` is callable directly so tests drive time by hand instead of sleeping.
+
+What happens when the app was not watching:
+
+| Case | Behaviour |
+|---|---|
+| Relaunched mid-session | Picked up from the store and keeps running, elapsed time correct |
+| Count-down end passed while away | Credited, dated at the **planned end** — not at whenever the app came back |
+| Count-up left running past 4h | Closed at its last heartbeat, recorded but **not** credited |
+| Device clock dragged backwards | Elapsed clamps at zero; the session keeps running |
+| DST change or timezone change mid-session | No effect — elapsed is absolute-time arithmetic |
+
+A running session writes a heartbeat every 30 seconds and on backgrounding. It exists only for Flowmodoro, which has no planned end: without it, a phone that dies twenty minutes in and gets charged overnight would read as four hours of deep work.
 
 ---
 
@@ -97,22 +113,47 @@ Four renames and one addition, all noted here so they are not a surprise:
 | `ReflectionEntry` | `Reflection` | Cosmetic. |
 | `isMustToday: Bool` | `mustForDate: Date?` | A bare flag never resets. Storing the day is what makes the rule of three clear itself each morning. |
 | — | `Practice.attribution` | Carries the source for any verbatim public-domain text, per the hard content rule. |
+| — | `FocusSession.lastHeartbeatAt` | Added in M2. Bounds a Flowmodoro session the app stopped watching. |
+| — | `FocusSession.endReason` | Added in M2. "How do my sessions actually end" is what Insights will want. |
 
-One behavioural judgement call worth a look: **completing a must frees a slot**, so the cap counts open musts rather than all musts. You never face more than three at once, but finishing one lets you pick another. Say the word if you want the stricter reading.
+### Judgement calls
+
+Five, all reversible, all worth your veto:
+
+1. **Completing a must frees a slot.** The rule-of-three cap counts open musts, not all musts. You never face more than three at once, but finishing one lets you pick another.
+2. **Ending early past 80% still counts as completed.** Twenty-four of twenty-five minutes is a finished Pomodoro, and calling it a failure is the shame mechanic the spec rules out. `FocusRules.completionThreshold`.
+3. **Just Start asks nothing.** The home button starts a five-minute session immediately — no mode, no intent, no resistance rating. The ritual is behind "Choose a mode". Every question is another chance to bounce, and the pitch is that starting costs nothing.
+4. **"Keep going" writes two sessions, not one long one.** The five minutes are credited on their own, then a fresh Pomodoro starts carrying the same intent. Both intervals genuinely happened.
+5. **Sessions under 10 seconds are discarded.** A mis-tap should not leave litter in the history.
 
 ---
 
 ## Testing
 
-`KoolSkoolTests` uses Swift Testing. Milestone 1 covers:
+`KoolSkoolTests` uses Swift Testing. Every time-dependent test moves a `MutableDateProvider` by hand — nothing sleeps.
 
 - **XP and levels** — curve is monotonic, `level(forXP:)` inverts `xpRequired(forLevel:)`, progress stays in `0...1`
 - **Session modes** — every mode's timings, Flowmodoro's divide-by-five with its clamps
-- **Session maths** — elapsed time is wall-clock and survives a killed app, progress clamps on overrun
+- **Session maths** — elapsed is wall-clock, clamps on overrun and on a backwards clock
+- **Snapshot** — formatting past an hour, VoiceOver phrasing that does not re-announce every second
+- **Focus engine** — persists before the first tick; finishes at the planned instant not the tick instant; force quit; end-passed-while-away; the Flowmodoro cap; keep-going; DST mid-session; timezone change mid-session; clock dragged backwards
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks
 
-Streak logic and the freeze rules get their tests in Milestone 4, when they exist.
+Streak and freeze logic get their tests in Milestone 4, when they exist.
+
+## Deferred seams
+
+Written as protocols now, implemented later, so nothing has to be retrofitted:
+
+- `SessionAlertScheduling` — the local-notification backstop. No-op until Milestone 9, where the permission prompt belongs. The engine's schedule-on-start and cancel-on-early-end paths are already written and tested.
+- Live Activities and Dynamic Island — Milestone 9.
+- The depleting **disc**, the full-screen ambient colour migration, time-check pulses, and making the digits secondary and toggleable — Milestone 5. Milestone 2 ships a correct ring that drains and already interpolates its stroke colour toward the overrun accent.
+- Task selection in the pre-session ritual — Milestone 3. `SessionSetupView` already accepts a task and threads its id into the session.
+- The commitment card — Milestone 6. `FocusSession.commitment` and `SessionPlan.commitment` exist and are persisted.
+- XP, coins, streaks, the celebration moment, and the post-session energy check-in — Milestones 4 and 7. The completion screen leaves that space empty rather than filling it with a placeholder.
+
+There is no pause. The spec never asks for one, so it was not invented.
 
 ---
 

@@ -26,9 +26,17 @@ final class SDFocusSession {
 
     var taskID: UUID?
 
+    var lastHeartbeatAt: Date?
+    var endReasonRaw: String?
+
     var mode: SessionMode {
         get { SessionMode(rawValue: modeRaw) ?? .justStart }
         set { modeRaw = newValue.rawValue }
+    }
+
+    var endReason: SessionEndReason? {
+        get { endReasonRaw.flatMap(SessionEndReason.init(rawValue:)) }
+        set { endReasonRaw = newValue?.rawValue }
     }
 
     init(
@@ -47,7 +55,9 @@ final class SDFocusSession {
         xpAwarded: Int = 0,
         coinsAwarded: Int = 0,
         earnedBonus: Bool = false,
-        taskID: UUID? = nil
+        taskID: UUID? = nil,
+        lastHeartbeatAt: Date? = nil,
+        endReasonRaw: String? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -65,6 +75,8 @@ final class SDFocusSession {
         self.coinsAwarded = coinsAwarded
         self.earnedBonus = earnedBonus
         self.taskID = taskID
+        self.lastHeartbeatAt = lastHeartbeatAt
+        self.endReasonRaw = endReasonRaw
     }
 }
 
@@ -159,7 +171,9 @@ extension SDFocusSession {
             xpAwarded: xpAwarded,
             coinsAwarded: coinsAwarded,
             taskID: taskID,
-            earnedBonus: earnedBonus
+            earnedBonus: earnedBonus,
+            lastHeartbeatAt: lastHeartbeatAt,
+            endReason: endReason
         )
     }
 
@@ -176,6 +190,8 @@ extension SDFocusSession {
         coinsAwarded = dto.coinsAwarded
         earnedBonus = dto.earnedBonus
         taskID = dto.taskID
+        lastHeartbeatAt = dto.lastHeartbeatAt
+        endReasonRaw = dto.endReason?.rawValue
         deletedAt = dto.deletedAt
     }
 
@@ -196,7 +212,9 @@ extension SDFocusSession {
             xpAwarded: dto.xpAwarded,
             coinsAwarded: dto.coinsAwarded,
             earnedBonus: dto.earnedBonus,
-            taskID: dto.taskID
+            taskID: dto.taskID,
+            lastHeartbeatAt: dto.lastHeartbeatAt,
+            endReasonRaw: dto.endReason?.rawValue
         )
     }
 }

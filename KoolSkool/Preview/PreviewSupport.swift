@@ -8,7 +8,8 @@ extension AppEnvironment {
         AppEnvironment(
             repositories: UnavailableRepositoryProvider(reason: "Preview has no store."),
             clock: PreviewClock.fixed,
-            haptics: NoOpHaptics()
+            haptics: NoOpHaptics(),
+            idleGuard: NoOpScreenIdleGuard()
         )
     }
 }

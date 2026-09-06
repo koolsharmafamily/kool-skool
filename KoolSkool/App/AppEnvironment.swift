@@ -11,6 +11,10 @@ final class AppEnvironment {
     let clock: any DateProvider
     let haptics: any HapticPerforming
 
+    /// Long-lived, because it has to keep ticking across view churn and be the
+    /// one place that knows whether a session is running.
+    let focusEngine: FocusEngine
+
     /// Cached copies of the two singleton rows, so screens can read them
     /// synchronously. Writes go through this object and refresh the cache.
     private(set) var settings = AppSettings()
@@ -26,12 +30,21 @@ final class AppEnvironment {
         repositories: any RepositoryProvider,
         clock: any DateProvider = SystemDateProvider(),
         haptics: any HapticPerforming = KSHaptics.shared,
+        alerts: any SessionAlertScheduling = NoOpSessionAlertScheduler(),
+        idleGuard: any ScreenIdleGuarding = ScreenIdleGuard(),
         storeWarning: String? = nil
     ) {
         self.repositories = repositories
         self.clock = clock
         self.haptics = haptics
         self.storeWarning = storeWarning
+        focusEngine = FocusEngine(
+            repositories: repositories,
+            clock: clock,
+            haptics: haptics,
+            alerts: alerts,
+            idleGuard: idleGuard
+        )
     }
 
     /// Loads the singleton rows. Safe to call more than once.
@@ -41,6 +54,7 @@ final class AppEnvironment {
             progress = try await repositories.progress.progress()
             haptics.isEnabled = settings.hapticsEnabled
             haptics.prepare()
+            focusEngine.apply(settings: settings)
             isReady = true
             lastError = nil
         } catch {
@@ -65,6 +79,7 @@ final class AppEnvironment {
         do {
             settings = try await repositories.settings.update(draft)
             haptics.isEnabled = settings.hapticsEnabled
+            focusEngine.apply(settings: settings)
             lastError = nil
         } catch {
             lastError = error.localizedDescription
