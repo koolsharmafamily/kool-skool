@@ -32,6 +32,7 @@ final class FocusEngine {
     private let haptics: any HapticPerforming
     private let alerts: any SessionAlertScheduling
     private let idleGuard: any ScreenIdleGuarding
+    private let rewards: RewardService
 
     // MARK: Observable state
 
@@ -44,6 +45,8 @@ final class FocusEngine {
     /// The task the current or just-finished session is attached to, if any.
     /// Loaded once rather than looked up on every render.
     private(set) var linkedTask: FocusTask?
+    /// What the session that just finished earned. Drives the celebration.
+    private(set) var lastAward: AwardOutcome?
     private(set) var lastError: String?
 
     /// Written through `apply(settings:)` rather than directly. Property
@@ -68,6 +71,7 @@ final class FocusEngine {
         haptics: any HapticPerforming = KSHaptics.shared,
         alerts: any SessionAlertScheduling = NoOpSessionAlertScheduler(),
         idleGuard: any ScreenIdleGuarding = ScreenIdleGuard(),
+        rewards: RewardService? = nil,
         ticksAutomatically: Bool = true
     ) {
         self.repositories = repositories
@@ -75,6 +79,7 @@ final class FocusEngine {
         self.haptics = haptics
         self.alerts = alerts
         self.idleGuard = idleGuard
+        self.rewards = rewards ?? RewardService(repositories: repositories, clock: clock)
         self.ticksAutomatically = ticksAutomatically
         self.now = clock.now
     }
@@ -171,6 +176,7 @@ final class FocusEngine {
         )
 
         finishedSession = nil
+        lastAward = nil
         status = .idle
         await start(plan)
     }
@@ -179,6 +185,7 @@ final class FocusEngine {
     func dismissCompletion() {
         finishedSession = nil
         linkedTask = nil
+        lastAward = nil
         status = .idle
     }
 
@@ -289,6 +296,24 @@ final class FocusEngine {
             finishedSession = saved
             status = .finished
             haptics.fire(saved.wasCompleted ? .complete : .tap)
+
+            // Rewards are deliberately after the session is safely stored. A
+            // failure to pay out must never cost someone the record of the work.
+            lastAward = nil
+            if saved.wasCompleted {
+                do {
+                    let outcome = try await rewards.award(for: saved)
+                    lastAward = outcome
+
+                    var stamped = saved
+                    stamped.xpAwarded = outcome.xp
+                    stamped.coinsAwarded = outcome.coins
+                    stamped.earnedBonus = outcome.bonus != nil
+                    finishedSession = stamped
+                } catch {
+                    lastError = error.localizedDescription
+                }
+            }
         } catch {
             lastError = error.localizedDescription
             // The session stays running rather than vanishing. Better to show a

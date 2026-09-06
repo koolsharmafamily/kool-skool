@@ -14,6 +14,7 @@ final class AppEnvironment {
     /// Long-lived, because it has to keep ticking across view churn and be the
     /// one place that knows whether a session is running.
     let focusEngine: FocusEngine
+    let rewards: RewardService
 
     /// Cached copies of the two singleton rows, so screens can read them
     /// synchronously. Writes go through this object and refresh the cache.
@@ -32,18 +33,23 @@ final class AppEnvironment {
         haptics: any HapticPerforming = KSHaptics.shared,
         alerts: any SessionAlertScheduling = NoOpSessionAlertScheduler(),
         idleGuard: any ScreenIdleGuarding = ScreenIdleGuard(),
+        rolls: @escaping @Sendable () -> RewardRolls = { RewardRolls.random() },
         storeWarning: String? = nil
     ) {
         self.repositories = repositories
         self.clock = clock
         self.haptics = haptics
         self.storeWarning = storeWarning
+
+        let rewards = RewardService(repositories: repositories, clock: clock, rolls: rolls)
+        self.rewards = rewards
         focusEngine = FocusEngine(
             repositories: repositories,
             clock: clock,
             haptics: haptics,
             alerts: alerts,
-            idleGuard: idleGuard
+            idleGuard: idleGuard,
+            rewards: rewards
         )
     }
 
@@ -51,10 +57,15 @@ final class AppEnvironment {
     func bootstrap() async {
         do {
             settings = try await repositories.settings.settings()
-            progress = try await repositories.progress.progress()
             haptics.isEnabled = settings.hapticsEnabled
             haptics.prepare()
             focusEngine.apply(settings: settings)
+
+            try await rewards.prepareCatalogue()
+            // Recomputed at launch so a streak that survived on freezes, or one
+            // that quietly lapsed, is right before the Today screen draws it.
+            progress = try await rewards.refreshStreak()
+
             isReady = true
             lastError = nil
         } catch {

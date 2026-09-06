@@ -13,6 +13,7 @@ struct TodayView: View {
     let onChooseMode: () -> Void
     let onEditTask: (FocusTask) -> Void
     let onOpenAllTasks: () -> Void
+    let onOpenCollection: () -> Void
 
     @State private var isPresentingBrainDump = false
     @State private var isPresentingPicker = false
@@ -23,6 +24,7 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: KSSpacing.lg) {
                     statusRow
                     heading
+                    freezeNote
 
                     if let notice = model.notice {
                         noticeBanner(notice)
@@ -72,10 +74,36 @@ struct TodayView: View {
 
     private var statusRow: some View {
         HStack(spacing: KSSpacing.xs) {
-            KSTag(text: streakLabel, systemImage: "flame.fill", state: .overrun)
+            KSTag(text: progress.streakLabel, systemImage: "flame.fill", state: .overrun)
             KSTag(text: "Level \(progress.level)", systemImage: "chart.line.uptrend.xyaxis")
+
+            Button(action: onOpenCollection) {
+                KSTag(text: "\(progress.coins)", systemImage: "circle.hexagongrid.fill", state: .breakTime)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(progress.coins) coins. Opens your collection.")
+
             Spacer()
         }
+    }
+
+    /// Only mentioned when it is actually load-bearing. Nobody needs to be told
+    /// about a safety net they are not standing on.
+    @ViewBuilder
+    private var freezeNote: some View {
+        if progress.currentStreak > 0 && progress.freezesUsedThisMonth > 0 {
+            Text(freezeCopy)
+                .ksFont(KSFont.caption)
+                .foregroundStyle(KSColor.textTertiary)
+        }
+    }
+
+    private var freezeCopy: String {
+        let used = progress.freezesUsedThisMonth
+        let left = progress.freezesRemaining
+        let daysCovered = used == 1 ? "A missed day was" : "\(used) missed days were"
+        let remaining = left == 1 ? "1 freeze left" : "\(left) freezes left"
+        return "\(daysCovered) covered for you. \(remaining) this month."
     }
 
     private var heading: some View {
@@ -150,10 +178,6 @@ struct TodayView: View {
     }
 
     // MARK: Copy
-
-    private var streakLabel: String {
-        progress.currentStreak == 0 ? "Fresh start" : "Day \(progress.currentStreak)"
-    }
 
     private var subtitle: String {
         let open = model.openMusts.count

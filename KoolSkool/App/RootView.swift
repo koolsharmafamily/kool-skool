@@ -8,6 +8,7 @@ struct RootView: View {
 
     @State private var todayModel: TodayModel?
     @State private var taskListModel: TaskListModel?
+    @State private var collectionModel: CollectionModel?
     @State private var path: [TaskRoute] = []
     @State private var setupTask: SetupRequest?
 
@@ -44,6 +45,7 @@ struct RootView: View {
             SessionCompleteView(
                 session: finished,
                 linkedTask: engine.linkedTask,
+                award: engine.lastAward,
                 offersExtension: engine.offersExtension,
                 extensionMode: .classicPomodoro,
                 onContinue: { mode in Task { await engine.continueSession(as: mode) } },
@@ -70,7 +72,8 @@ struct RootView: View {
                         onJustStart: startJustStart,
                         onChooseMode: { setupTask = SetupRequest(task: nil) },
                         onEditTask: { task in path.append(.detail(task)) },
-                        onOpenAllTasks: { path.append(.list) }
+                        onOpenAllTasks: { path.append(.list) },
+                        onOpenCollection: { path.append(.collection) }
                     )
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -124,6 +127,12 @@ struct RootView: View {
             )
             .onDisappear { Task { await refreshAll() } }
 
+        case .collection:
+            if let collectionModel {
+                CollectionView(model: collectionModel)
+                    .onDisappear { Task { await refreshAll() } }
+            }
+
         case .gallery:
             DesignSystemGallery()
         }
@@ -158,6 +167,9 @@ struct RootView: View {
         }
         if taskListModel == nil {
             taskListModel = TaskListModel(repositories: app.repositories, clock: app.clock)
+        }
+        if collectionModel == nil {
+            collectionModel = CollectionModel(repositories: app.repositories, rewards: app.rewards)
         }
         await refreshAll()
     }
@@ -196,6 +208,7 @@ private struct TaskDetailScreen: View {
 enum TaskRoute: Hashable {
     case list
     case detail(FocusTask)
+    case collection
     case gallery
 }
 

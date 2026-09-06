@@ -12,11 +12,11 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 3 complete — tasks, brain dump, steps, rule of three, Today screen.**
+**Milestone 4 complete — XP, coins, streaks with freezes, the celebration moment, the collection.**
 
-The loop closes end to end: dump what's in your head, pin up to three for today, break one into steps, start a session on it, and mark it done from the completion screen.
+The full loop runs: dump what's in your head, pin up to three for today, break one into steps, start a session, get paid for it, and watch a streak build that forgives two missed days a month without being asked.
 
-Remaining milestones, in order: rewards → time blindness → body doubling → check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
+Remaining milestones, in order: time blindness → body doubling → check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
 
 ---
 
@@ -38,6 +38,7 @@ KoolSkool/
 ├── DesignSystem/   Colour, type, spacing, haptics, animation, components
 ├── Features/
 │   ├── Focus/      The session engine, its pure decision logic, and its screens
+│   ├── Rewards/    XP, coins, streaks, the celebration, the collection
 │   └── Tasks/      Today, the task list, the step splitter, mode suggestion
 ├── Domain/         Pure Sendable value types. No SwiftData, no SwiftUI.
 │   ├── Core/       Clock, sync metadata, session modes, shared enums
@@ -99,6 +100,30 @@ What happens when the app was not watching:
 
 A running session writes a heartbeat every 30 seconds and on backgrounding. It exists only for Flowmodoro, which has no planned end: without it, a phone that dies twenty minutes in and gets charged overnight would read as four hours of deep work.
 
+### Streaks are recomputed, never incremented
+
+`StreakCalculator.evaluate` walks the session history backwards from today and returns the streak, the record, and which days a freeze covered. Nothing about the streak or the freeze budget is stored as a running total, so a missed update, a restore from backup, or a clock that jumped cannot leave a wrong number stuck in the store. It is idempotent and self-healing by construction.
+
+Freezes fall out of the same walk — two per calendar month, applied to the missed day's month, entirely retroactively. Two rules that took some thought:
+
+- **Today is never held against you.** A day with no session yet is neither counted nor treated as a break; the day isn't over.
+- **Freezes spent on a streak that broke anyway are handed back.** Walking back over four missed days with two freezes ends the streak, so those two freezes were never load-bearing and are not charged.
+
+The copy is "Fresh start", never "you lost 47 days" — `UserProgress.streakLabel` is the single place that decides.
+
+### The reward economy
+
+`RewardCalculator.reward(for:rolls:)` is pure: the same session and the same three random draws always produce the same reward. The randomness is taken at the edge and injected, which is what makes the one-in-five chest testable.
+
+The base XP and coins **always land**. The chest can only ever add — and if a cosmetic chest opens when there is nothing left to give, it pays out in coins instead rather than opening onto nothing.
+
+| | |
+|---|---|
+| XP | 2/minute, floor of 10, times 1.0–1.6 for resistance |
+| Coins | one per five minutes, floor of 1 |
+| Chest | 1 in 5 completed sessions; coins ×2/×3, or a cosmetic |
+| Unfinished session | pays nothing — not a penalty, just nothing to pay out for |
+
 ---
 
 ## Deviations from the spec
@@ -135,6 +160,14 @@ All reversible, all worth your veto.
 9. **The "no first step yet" nudge is selective.** Only tasks with a long estimate or three-plus steps get it. Asking "what is the smallest first step?" about *buy milk* is noise, and noise is why people stop reading prompts.
 10. **The task editor saves on leaving the screen and on field commit, not per keystroke.** Edits abandoned by a force quit mid-typing are lost. Acceptable for v1; say if not.
 
+**Rewards (M4)**
+
+11. **Freezes spent on a streak that broke anyway are refunded.** They kept nothing alive, so charging for them would be a quiet penalty.
+12. **The freeze note only appears when a freeze was actually used.** Nobody needs telling about a safety net they are not standing on.
+13. **A cosmetic chest with nothing left to give pays coins instead.** A chest that opens onto nothing is worse than no chest.
+14. **The Collection is honest about what equipping does today.** Companions and soundscapes don't exist until Milestone 6, and the screen says so rather than selling something that isn't there. If you'd rather the whole screen waited until those features land, it's one route to delete.
+15. **Sound is missing from the celebration.** The spec asks for confetti, haptics, sound, and a count-up; there's no audio stack until Milestone 6, so the other three ship now and sound joins them there.
+
 ---
 
 ## Testing
@@ -149,6 +182,8 @@ All reversible, all worth your veto.
 - **Today** — brain dump splitting, the rule-of-three cap as a notice rather than an error, finishing a must freeing a slot, musts not leaking across days, next-step driving the label
 - **Task list and detail** — sectioning, pin toggling, step lifecycle, templates, draft saving
 - **Mode suggestion** — high-resistance override and its explanation, nudge selectivity
+- **Streaks** — freezes applied retroactively, the per-month budget, wasted freezes refunded, today never held against you, idempotence, DST in both directions, a bounded walk over 800 days
+- **Rewards** — the XP curve and resistance multiplier, the base always landing whatever the chest does, chest frequency landing on 1-in-5, level-up unlocks, purchases, the cosmetic-chest fallback
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks
 

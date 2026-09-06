@@ -2,18 +2,23 @@ import SwiftUI
 
 /// The post-session screen.
 ///
-/// Milestone 2 scope: say honestly what happened, and offer to keep going. The
-/// energy check-in lands in Milestone 7, and XP, coins and the celebration
-/// moment in Milestone 4 — the space they will occupy is left deliberately empty
-/// rather than filled with a placeholder.
+/// Says honestly what happened, pays out, and offers to keep going. The
+/// celebration plays over the top on arrival and gets out of the way after a
+/// second and a half, or sooner if tapped.
+///
+/// The energy check-in lands in Milestone 7; that space is left empty rather
+/// than filled with a placeholder.
 struct SessionCompleteView: View {
     let session: FocusSession
     var linkedTask: FocusTask?
+    var award: AwardOutcome?
     let offersExtension: Bool
     let extensionMode: SessionMode
     let onContinue: (SessionMode) -> Void
     let onMarkTaskDone: () -> Void
     let onDone: () -> Void
+
+    @State private var hasCelebrated = false
 
     private var minutes: Int { session.actualMinutes }
     private var plannedMinutes: Int { Int(session.plannedDuration / 60) }
@@ -24,6 +29,7 @@ struct SessionCompleteView: View {
                 Spacer(minLength: KSSpacing.xl)
 
                 headline
+                if let award, award.hasAnythingToShow { RewardSummary(award: award) }
                 if !session.intent.isEmpty { intentCard }
                 if let task = linkedTask { taskCard(task) }
 
@@ -32,6 +38,13 @@ struct SessionCompleteView: View {
             }
             .padding(.vertical, KSSpacing.lg)
         }
+        .overlay {
+            if let award, !hasCelebrated, award.hasAnythingToShow {
+                CelebrationOverlay(award: award) { hasCelebrated = true }
+                    .ksTransition(.opacity)
+            }
+        }
+        .ksAnimation(KSAnimation.snappy, value: hasCelebrated)
     }
 
     // MARK: Pieces
@@ -167,6 +180,7 @@ struct SessionCompleteView: View {
 
     return SessionCompleteView(
         session: session,
+        award: nil,
         offersExtension: true,
         extensionMode: .classicPomodoro,
         onContinue: { _ in },
@@ -186,6 +200,7 @@ struct SessionCompleteView: View {
 
     return SessionCompleteView(
         session: session,
+        award: nil,
         offersExtension: false,
         extensionMode: .classicPomodoro,
         onContinue: { _ in },
