@@ -26,12 +26,15 @@ struct SessionSetupView: View {
         self.preselectedTask = preselectedTask
         self.onStart = onStart
         self.onCancel = onCancel
-        _mode = State(initialValue: settings.defaultMode)
+        // A task already flagged as hard to start opens on Just Start, whatever
+        // the default is.
+        _mode = State(initialValue: TaskSuggestion.suggestedMode(for: preselectedTask, settings: settings))
     }
 
     var body: some View {
         KSScreen(state: .ready) {
             VStack(alignment: .leading, spacing: KSSpacing.lg) {
+                if let task = preselectedTask { taskCard(task) }
                 modeSection
                 intentSection
                 resistanceSection
@@ -53,6 +56,29 @@ struct SessionSetupView: View {
 
     // MARK: Sections
 
+    /// The one task. Nothing else is on this screen, and nothing else will be on
+    /// screen once the session starts.
+    private func taskCard(_ task: FocusTask) -> some View {
+        KSCard {
+            VStack(alignment: .leading, spacing: KSSpacing.xxs) {
+                Text("Working on")
+                    .ksFont(KSFont.caption)
+                    .foregroundStyle(KSColor.textSecondary)
+
+                Text(task.startableLabel)
+                    .ksFont(KSFont.headline)
+                    .foregroundStyle(KSColor.textPrimary)
+
+                if task.startableLabel != task.title {
+                    Text(task.title)
+                        .ksFont(KSFont.caption)
+                        .foregroundStyle(KSColor.textSecondary)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private var modeSection: some View {
         VStack(alignment: .leading, spacing: KSSpacing.xs) {
             sectionLabel("Mode")
@@ -73,6 +99,13 @@ struct SessionSetupView: View {
             Text(mode.tagline)
                 .ksFont(KSFont.caption)
                 .foregroundStyle(KSColor.textSecondary)
+
+            // Said out loud, so the app is never quietly deciding things.
+            if let reason = TaskSuggestion.reason(for: preselectedTask, settings: settings) {
+                Text(reason)
+                    .ksFont(KSFont.caption)
+                    .foregroundStyle(KSColor.accent(.breakTime))
+            }
         }
     }
 

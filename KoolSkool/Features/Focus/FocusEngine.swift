@@ -41,6 +41,9 @@ final class FocusEngine {
     private(set) var now: Date
     /// The session that just ended, held for the completion screen.
     private(set) var finishedSession: FocusSession?
+    /// The task the current or just-finished session is attached to, if any.
+    /// Loaded once rather than looked up on every render.
+    private(set) var linkedTask: FocusTask?
     private(set) var lastError: String?
 
     /// Written through `apply(settings:)` rather than directly. Property
@@ -107,6 +110,7 @@ final class FocusEngine {
 
             session = active
             status = .running
+            await loadLinkedTask(id: active.taskID)
 
             if let resolution = Self.resolveUnattended(active, now: now) {
                 await finish(reason: resolution.reason, at: resolution.endedAt)
@@ -133,6 +137,7 @@ final class FocusEngine {
             status = .running
             finishedSession = nil
             lastError = nil
+            await loadLinkedTask(id: saved.taskID)
 
             haptics.fire(.start)
             await beginRunning(saved)
@@ -173,7 +178,35 @@ final class FocusEngine {
     /// Leaves the completion screen without starting anything.
     func dismissCompletion() {
         finishedSession = nil
+        linkedTask = nil
         status = .idle
+    }
+
+    /// "Did you finish it?" from the completion screen.
+    ///
+    /// The session's real duration is credited to the task, which is what the
+    /// estimate calibration in Milestone 5 reads.
+    func markLinkedTaskComplete() async {
+        guard let task = linkedTask, let finished = finishedSession else { return }
+
+        do {
+            try await repositories.tasks.complete(
+                taskID: task.id,
+                at: finished.endedAt ?? clock.now,
+                actualMinutes: finished.actualMinutes
+            )
+            linkedTask = try await repositories.tasks.task(id: task.id)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    private func loadLinkedTask(id: UUID?) async {
+        guard let id else {
+            linkedTask = nil
+            return
+        }
+        linkedTask = try? await repositories.tasks.task(id: id)
     }
 
     // MARK: Ticking

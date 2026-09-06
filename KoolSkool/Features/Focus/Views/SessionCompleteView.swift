@@ -8,9 +8,11 @@ import SwiftUI
 /// rather than filled with a placeholder.
 struct SessionCompleteView: View {
     let session: FocusSession
+    var linkedTask: FocusTask?
     let offersExtension: Bool
     let extensionMode: SessionMode
     let onContinue: (SessionMode) -> Void
+    let onMarkTaskDone: () -> Void
     let onDone: () -> Void
 
     private var minutes: Int { session.actualMinutes }
@@ -23,6 +25,7 @@ struct SessionCompleteView: View {
 
                 headline
                 if !session.intent.isEmpty { intentCard }
+                if let task = linkedTask { taskCard(task) }
 
                 Spacer(minLength: KSSpacing.md)
                 actions
@@ -57,6 +60,36 @@ struct SessionCompleteView: View {
                 Text(session.intent)
                     .ksFont(KSFont.headline)
                     .foregroundStyle(KSColor.textPrimary)
+            }
+        }
+    }
+
+    /// "Did you finish it?" — kept small and optional. It is a question, not a
+    /// demand, and saying no costs nothing.
+    ///
+    /// Answering yes credits the session's real duration to the task, which is
+    /// what the estimate calibration in Milestone 5 reads.
+    private func taskCard(_ task: FocusTask) -> some View {
+        KSCard {
+            VStack(alignment: .leading, spacing: KSSpacing.xs) {
+                Text(task.title)
+                    .ksFont(KSFont.body)
+                    .foregroundStyle(KSColor.textPrimary)
+
+                if task.isCompleted {
+                    Label("Marked done", systemImage: "checkmark.circle.fill")
+                        .ksFont(KSFont.caption)
+                        .foregroundStyle(KSColor.accent(.focusing))
+                } else {
+                    HStack(spacing: KSSpacing.sm) {
+                        Text("Finished it?")
+                            .ksFont(KSFont.caption)
+                            .foregroundStyle(KSColor.textSecondary)
+                        Spacer(minLength: 0)
+                        Button("Mark done", action: onMarkTaskDone)
+                            .ksFont(KSFont.label)
+                    }
+                }
             }
         }
     }
@@ -137,6 +170,7 @@ struct SessionCompleteView: View {
         offersExtension: true,
         extensionMode: .classicPomodoro,
         onContinue: { _ in },
+        onMarkTaskDone: {},
         onDone: {}
     )
 }
@@ -155,6 +189,7 @@ struct SessionCompleteView: View {
         offersExtension: false,
         extensionMode: .classicPomodoro,
         onContinue: { _ in },
+        onMarkTaskDone: {},
         onDone: {}
     )
 }

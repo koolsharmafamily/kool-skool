@@ -12,13 +12,11 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 2 complete — focus engine, active session screen, background-safe timer.**
+**Milestone 3 complete — tasks, brain dump, steps, rule of three, Today screen.**
 
-You can start a session, watch it run, end it early, and roll a Just Start straight into a Pomodoro. Sessions survive backgrounding, force quit, and device restart.
+The loop closes end to end: dump what's in your head, pin up to three for today, break one into steps, start a session on it, and mark it done from the completion screen.
 
-The home screen is still a placeholder — the real Today screen arrives in Milestone 3.
-
-Remaining milestones, in order: tasks → rewards → time blindness → body doubling → check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
+Remaining milestones, in order: rewards → time blindness → body doubling → check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
 
 ---
 
@@ -39,7 +37,8 @@ KoolSkool/
 ├── App/            Composition root, root view, the view-model pattern
 ├── DesignSystem/   Colour, type, spacing, haptics, animation, components
 ├── Features/
-│   └── Focus/      The session engine, its pure decision logic, and its screens
+│   ├── Focus/      The session engine, its pure decision logic, and its screens
+│   └── Tasks/      Today, the task list, the step splitter, mode suggestion
 ├── Domain/         Pure Sendable value types. No SwiftData, no SwiftUI.
 │   ├── Core/       Clock, sync metadata, session modes, shared enums
 │   ├── Entities/   The eleven entities, as structs
@@ -118,13 +117,23 @@ Four renames and one addition, all noted here so they are not a surprise:
 
 ### Judgement calls
 
-Five, all reversible, all worth your veto:
+All reversible, all worth your veto.
 
-1. **Completing a must frees a slot.** The rule-of-three cap counts open musts, not all musts. You never face more than three at once, but finishing one lets you pick another.
-2. **Ending early past 80% still counts as completed.** Twenty-four of twenty-five minutes is a finished Pomodoro, and calling it a failure is the shame mechanic the spec rules out. `FocusRules.completionThreshold`.
-3. **Just Start asks nothing.** The home button starts a five-minute session immediately — no mode, no intent, no resistance rating. The ritual is behind "Choose a mode". Every question is another chance to bounce, and the pitch is that starting costs nothing.
-4. **"Keep going" writes two sessions, not one long one.** The five minutes are credited on their own, then a fresh Pomodoro starts carrying the same intent. Both intervals genuinely happened.
-5. **Sessions under 10 seconds are discarded.** A mis-tap should not leave litter in the history.
+**Focus (M2)**
+
+1. **Ending early past 80% still counts as completed.** Twenty-four of twenty-five minutes is a finished Pomodoro, and calling it a failure is the shame mechanic the spec rules out. `FocusRules.completionThreshold`.
+2. **Just Start asks nothing.** The home button starts a five-minute session immediately — no mode, no intent, no resistance rating. The ritual is behind "Choose a mode". Every question is another chance to bounce.
+3. **"Keep going" writes two sessions, not one long one.** The five minutes are credited on their own, then a fresh Pomodoro starts carrying the same intent.
+4. **Sessions under 10 seconds are discarded.** A mis-tap should not leave litter in the history.
+
+**Tasks (M3)**
+
+5. **Completing a must frees a slot.** The cap counts open musts, not all musts. You never face more than three at once, but finishing one lets you pick another.
+6. **A brain dump splits on newlines.** One line becomes one task. A dump is a list by nature, and merging them only creates sorting work later.
+7. **Today shows one empty slot, not three.** Three dashed boxes on a fresh install reads as three chores rather than an invitation.
+8. **High-resistance tasks open on Just Start.** A task rated 4 or 5 overrides the default mode, and the setup screen says why in plain words rather than deciding quietly. `TaskSuggestion`.
+9. **The "no first step yet" nudge is selective.** Only tasks with a long estimate or three-plus steps get it. Asking "what is the smallest first step?" about *buy milk* is noise, and noise is why people stop reading prompts.
+10. **The task editor saves on leaving the screen and on field commit, not per keystroke.** Edits abandoned by a force quit mid-typing are lost. Acceptable for v1; say if not.
 
 ---
 
@@ -137,6 +146,9 @@ Five, all reversible, all worth your veto:
 - **Session maths** — elapsed is wall-clock, clamps on overrun and on a backwards clock
 - **Snapshot** — formatting past an hour, VoiceOver phrasing that does not re-announce every second
 - **Focus engine** — persists before the first tick; finishes at the planned instant not the tick instant; force quit; end-passed-while-away; the Flowmodoro cap; keep-going; DST mid-session; timezone change mid-session; clock dragged backwards
+- **Today** — brain dump splitting, the rule-of-three cap as a notice rather than an error, finishing a must freeing a slot, musts not leaking across days, next-step driving the label
+- **Task list and detail** — sectioning, pin toggling, step lifecycle, templates, draft saving
+- **Mode suggestion** — high-resistance override and its explanation, nudge selectivity
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks
 
@@ -149,8 +161,8 @@ Written as protocols now, implemented later, so nothing has to be retrofitted:
 - `SessionAlertScheduling` — the local-notification backstop. No-op until Milestone 9, where the permission prompt belongs. The engine's schedule-on-start and cancel-on-early-end paths are already written and tested.
 - Live Activities and Dynamic Island — Milestone 9.
 - The depleting **disc**, the full-screen ambient colour migration, time-check pulses, and making the digits secondary and toggleable — Milestone 5. Milestone 2 ships a correct ring that drains and already interpolates its stroke colour toward the overrun accent.
-- Task selection in the pre-session ritual — Milestone 3. `SessionSetupView` already accepts a task and threads its id into the session.
 - The commitment card — Milestone 6. `FocusSession.commitment` and `SessionPlan.commitment` exist and are persisted.
+- AI-assisted task breakdown — not in v1 and not stubbed. The offline template row in the step editor is the shape it would slot into if it ever ships.
 - XP, coins, streaks, the celebration moment, and the post-session energy check-in — Milestones 4 and 7. The completion screen leaves that space empty rather than filling it with a placeholder.
 
 There is no pause. The spec never asks for one, so it was not invented.
