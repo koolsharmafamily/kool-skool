@@ -11,6 +11,7 @@ struct RootView: View {
     @State private var collectionModel: CollectionModel?
     @State private var path: [TaskRoute] = []
     @State private var setupTask: SetupRequest?
+    @State private var isPresentingTimeSettings = false
 
     private var engine: FocusEngine { app.focusEngine }
 
@@ -37,7 +38,11 @@ struct RootView: View {
     @ViewBuilder
     private var content: some View {
         if engine.status == .running, let snapshot = engine.snapshot {
-            ActiveSessionView(snapshot: snapshot, taskTitle: engine.linkedTask?.startableLabel) {
+            ActiveSessionView(
+                snapshot: snapshot,
+                taskTitle: engine.linkedTask?.startableLabel,
+                showsDigits: app.settings.showDigitalTimer
+            ) {
                 Task { await engine.endEarly() }
             }
             .ksTransition(.opacity)
@@ -85,6 +90,14 @@ struct RootView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isPresentingTimeSettings = true
+                    } label: {
+                        Label("Time and attention", systemImage: "slider.horizontal.3")
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
                     // Reviewing aid only. Settings, in Milestone 10, is where a
                     // real entry point for this would live if it ships at all.
                     if Self.showsDesignSystemShortcut {
@@ -95,6 +108,14 @@ struct RootView: View {
                         }
                     }
                 }
+            }
+            .sheet(isPresented: $isPresentingTimeSettings) {
+                TimeSettingsSheet(
+                    settings: app.settings,
+                    calibration: app.calibration,
+                    onChange: { mutate in Task { await app.updateSettings(mutate) } },
+                    onClose: { isPresentingTimeSettings = false }
+                )
             }
         }
     }
@@ -123,6 +144,8 @@ struct RootView: View {
                 task: task,
                 repositories: app.repositories,
                 clock: app.clock,
+                calibration: app.calibration,
+                autoPadsEstimates: app.settings.autoPadEstimates,
                 onDeleted: { if !path.isEmpty { path.removeLast() } }
             )
             .onDisappear { Task { await refreshAll() } }
@@ -178,6 +201,7 @@ struct RootView: View {
         await todayModel?.load()
         await taskListModel?.load()
         await app.refreshProgress()
+        await app.refreshCalibration()
     }
 }
 
@@ -187,20 +211,31 @@ struct RootView: View {
 /// the model inline there would throw away in-progress edits.
 private struct TaskDetailScreen: View {
     @State private var model: TaskDetailModel
+    private let calibration: EstimateCalibration
+    private let autoPadsEstimates: Bool
     private let onDeleted: () -> Void
 
     init(
         task: FocusTask,
         repositories: any RepositoryProvider,
         clock: any DateProvider,
+        calibration: EstimateCalibration,
+        autoPadsEstimates: Bool,
         onDeleted: @escaping () -> Void
     ) {
         _model = State(initialValue: TaskDetailModel(task: task, repositories: repositories, clock: clock))
+        self.calibration = calibration
+        self.autoPadsEstimates = autoPadsEstimates
         self.onDeleted = onDeleted
     }
 
     var body: some View {
-        TaskDetailView(model: model, onDeleted: onDeleted)
+        TaskDetailView(
+            model: model,
+            calibration: calibration,
+            autoPadsEstimates: autoPadsEstimates,
+            onDeleted: onDeleted
+        )
     }
 }
 

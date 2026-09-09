@@ -6,6 +6,8 @@ import SwiftUI
 /// because it is the field that decides whether the task ever gets started.
 struct TaskDetailView: View {
     @Bindable var model: TaskDetailModel
+    var calibration: EstimateCalibration = .unknown
+    var autoPadsEstimates: Bool = false
     let onDeleted: () -> Void
 
     @State private var newStepTitle = ""
@@ -240,11 +242,12 @@ struct TaskDetailView: View {
             fieldLabel("Estimate")
 
             HStack(spacing: KSSpacing.xs) {
-                ForEach([15, 30, 60, 120], id: \.self) { minutes in
-                    let isSelected = model.draft.estimateMinutes == minutes
+                ForEach(Self.estimateChoices, id: \.self) { minutes in
+                    let stored = storedEstimate(for: minutes)
+                    let isSelected = model.draft.estimateMinutes == stored
 
                     Button {
-                        model.draft.estimateMinutes = isSelected ? nil : minutes
+                        model.draft.estimateMinutes = isSelected ? nil : stored
                         Task { await model.save() }
                     } label: {
                         Text("\(minutes)m")
@@ -257,14 +260,44 @@ struct TaskDetailView: View {
                         isSelected ? KSColor.accent(.ready) : KSColor.surfaceRaised,
                         in: RoundedRectangle(cornerRadius: KSRadius.md, style: .continuous)
                     )
+                    .accessibilityLabel(estimateLabel(tapped: minutes, stored: stored))
                     .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
                 }
             }
 
-            Text("Rough is fine. Milestone 5 compares these against what actually happened.")
+            estimateFootnote
+        }
+    }
+
+    /// What the buttons say — what you *think* it will take. What gets stored can
+    /// differ, and when it does the footnote says so out loud.
+    private static let estimateChoices = [15, 30, 60, 120]
+
+    private func storedEstimate(for minutes: Int) -> Int {
+        autoPadsEstimates ? EstimateCalibrator.padded(minutes, using: calibration) : minutes
+    }
+
+    @ViewBuilder
+    private var estimateFootnote: some View {
+        if autoPadsEstimates, calibration.isReliable, let short = calibration.shortLabel {
+            Text("Padded to match your history — your estimates run \(short). Recorded as \(model.draft.estimateMinutes.map(String.init) ?? "—") min.")
+                .ksFont(KSFont.caption)
+                .foregroundStyle(KSColor.accent(.breakTime))
+        } else if let summary = calibration.summary {
+            Text(summary)
+                .ksFont(KSFont.caption)
+                .foregroundStyle(KSColor.textTertiary)
+        } else {
+            Text("Rough is fine. After \(EstimateCalibrator.minimumSamples) finished tasks the app can tell you how far off these usually run.")
                 .ksFont(KSFont.caption)
                 .foregroundStyle(KSColor.textTertiary)
         }
+    }
+
+    private func estimateLabel(tapped: Int, stored: Int) -> String {
+        stored == tapped
+            ? "\(tapped) minutes"
+            : "\(tapped) minutes, recorded as \(stored)"
     }
 
     private var dangerZone: some View {

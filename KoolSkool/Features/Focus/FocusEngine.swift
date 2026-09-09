@@ -61,6 +61,9 @@ final class FocusEngine {
 
     @ObservationIgnored private var tickTask: Task<Void, Never>?
     @ObservationIgnored private var lastHeartbeatAt: Date?
+    /// How many time-check pulses this session has already fired. Counted
+    /// rather than timed, so they cannot drift.
+    @ObservationIgnored private var timeChecksFired = 0
     /// Tests drive `tick()` by hand against a fake clock. Leaving the real
     /// one-second loop running alongside would make them non-deterministic.
     @ObservationIgnored private let ticksAutomatically: Bool
@@ -192,7 +195,7 @@ final class FocusEngine {
     /// "Did you finish it?" from the completion screen.
     ///
     /// The session's real duration is credited to the task, which is what the
-    /// estimate calibration in Milestone 5 reads.
+    /// estimate calibration reads.
     func markLinkedTaskComplete() async {
         guard let task = linkedTask, let finished = finishedSession else { return }
 
@@ -232,7 +235,25 @@ final class FocusEngine {
             return
         }
 
+        fireTimeCheckIfDue(elapsed: current.elapsed(asOf: now))
         await writeHeartbeatIfDue()
+    }
+
+    /// The optional pulse every N minutes. Off by default, because a nudge some
+    /// people find grounding others find is just an interruption.
+    ///
+    /// Derived from elapsed time rather than counted from the last pulse, so it
+    /// cannot drift — and coming back from twenty minutes in the background
+    /// fires once, not three times in a row.
+    private func fireTimeCheckIfDue(elapsed: TimeInterval) {
+        guard settings.timeChecksEnabled else { return }
+
+        let interval = TimeInterval(max(1, settings.timeCheckIntervalMinutes) * 60)
+        let due = Int(elapsed / interval)
+
+        guard due > timeChecksFired else { return }
+        timeChecksFired = due
+        haptics.fire(.timeCheck)
     }
 
     /// Forwarded from the scene phase. Returning to the foreground has to
@@ -263,6 +284,9 @@ final class FocusEngine {
 
     private func beginRunning(_ session: FocusSession) async {
         lastHeartbeatAt = session.lastHeartbeatAt
+        // Restoring mid-session must not replay every pulse that was missed.
+        let interval = TimeInterval(max(1, settings.timeCheckIntervalMinutes) * 60)
+        timeChecksFired = Int(session.elapsed(asOf: clock.now) / interval)
         startTicking()
         syncIdleGuard()
         await alerts.scheduleEnd(for: session)

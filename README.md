@@ -12,11 +12,11 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 4 complete — XP, coins, streaks with freezes, the celebration moment, the collection.**
+**Milestone 5 complete — depleting disc, ambient colour shift, time-check pulses, estimate calibration.**
 
-The full loop runs: dump what's in your head, pin up to three for today, break one into steps, start a session, get paid for it, and watch a streak build that forgives two missed days a month without being asked.
+The full loop runs: dump what's in your head, pin up to three for today, break one into steps, start a session, watch a disc drain while the background warms toward the deadline, get paid for it, and watch a streak build that forgives two missed days a month without being asked.
 
-Remaining milestones, in order: time blindness → body doubling → check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
+Remaining milestones, in order: body doubling → check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
 
 ---
 
@@ -39,7 +39,8 @@ KoolSkool/
 ├── Features/
 │   ├── Focus/      The session engine, its pure decision logic, and its screens
 │   ├── Rewards/    XP, coins, streaks, the celebration, the collection
-│   └── Tasks/      Today, the task list, the step splitter, mode suggestion
+│   ├── Tasks/      Today, the task list, the step splitter, mode suggestion
+│   └── TimeBlindness/  The disc, the ambient shift, estimate calibration
 ├── Domain/         Pure Sendable value types. No SwiftData, no SwiftUI.
 │   ├── Core/       Clock, sync metadata, session modes, shared enums
 │   ├── Entities/   The eleven entities, as structs
@@ -168,6 +169,16 @@ All reversible, all worth your veto.
 14. **The Collection is honest about what equipping does today.** Companions and soundscapes don't exist until Milestone 6, and the screen says so rather than selling something that isn't there. If you'd rather the whole screen waited until those features land, it's one route to delete.
 15. **Sound is missing from the celebration.** The spec asks for confetti, haptics, sound, and a count-up; there's no audio stack until Milestone 6, so the other three ship now and sound joins them there.
 
+**Time blindness (M5)**
+
+16. **The digits sit below the disc at 52pt, not 76pt.** The spec wants timers at 72pt+ *and* the digits secondary to the disc. Those pull against each other, so the disc leads at ~300pt and the digits stay large but clearly beneath it. Turning them off leaves a pure disc.
+17. **A count-up disc fills through each minute instead of draining.** Flowmodoro has no end to drain toward. A still disc would look broken; a draining one would invent a deadline the mode exists to avoid.
+18. **The ambient shift never warms during Flowmodoro.** Same reason — migrating toward the overrun colour would imply a finish line that isn't there.
+19. **Time-check pulses are counted, not timed.** Returning from twenty minutes in the background fires one pulse, not three in a row. Three buzzes together is an alarm, not a time check.
+20. **Calibration uses the median, not the mean.** One task estimated at fifteen minutes that became a four-hour rabbit hole would drag a mean far enough to make every suggestion useless.
+21. **The app says nothing about your estimates until ten finished tasks.** Nine is a hunch. Inventing a pattern from it would be the app making things up about the user.
+22. **Auto-padding stores the padded number, and the row says so.** Tap 30, record 48, with a note explaining why. The alternative — showing padded numbers on the buttons — makes the picker read as nonsense.
+
 ---
 
 ## Testing
@@ -184,10 +195,11 @@ All reversible, all worth your veto.
 - **Mode suggestion** — high-resistance override and its explanation, nudge selectivity
 - **Streaks** — freezes applied retroactively, the per-month budget, wasted freezes refunded, today never held against you, idempotence, DST in both directions, a bounded walk over 800 days
 - **Rewards** — the XP curve and resistance multiplier, the base always landing whatever the chest does, chest frequency landing on 1-in-5, level-up unlocks, purchases, the cosmetic-chest fallback
+- **Time checks** — off by default, fires on the interval, one pulse after backgrounding rather than a burst, no backlog replayed on restore
+- **Depleting disc** — empty at zero, whole circle at one, clamped above one, animatable as one continuous value
+- **Estimate calibration** — silence below ten samples, median resisting a 40x outlier, padding clamped at 0.5–3x, per-task deltas
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks
-
-Streak and freeze logic get their tests in Milestone 4, when they exist.
 
 ## Deferred seams
 
@@ -195,7 +207,8 @@ Written as protocols now, implemented later, so nothing has to be retrofitted:
 
 - `SessionAlertScheduling` — the local-notification backstop. No-op until Milestone 9, where the permission prompt belongs. The engine's schedule-on-start and cancel-on-early-end paths are already written and tested.
 - Live Activities and Dynamic Island — Milestone 9.
-- The depleting **disc**, the full-screen ambient colour migration, time-check pulses, and making the digits secondary and toggleable — Milestone 5. Milestone 2 ships a correct ring that drains and already interpolates its stroke colour toward the overrun accent.
+- Home screen and Lock Screen widgets — Milestone 9, with Live Activities.
+- A real Settings screen — Milestone 10. `TimeSettingsSheet` carries the Milestone 5 switches in the meantime, because a feature nobody can reach is a feature nobody can judge; it folds into Settings when that lands.
 - The commitment card — Milestone 6. `FocusSession.commitment` and `SessionPlan.commitment` exist and are persisted.
 - AI-assisted task breakdown — not in v1 and not stubbed. The offline template row in the step editor is the shape it would slot into if it ever ships.
 - XP, coins, streaks, the celebration moment, and the post-session energy check-in — Milestones 4 and 7. The completion screen leaves that space empty rather than filling it with a placeholder.

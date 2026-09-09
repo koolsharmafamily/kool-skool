@@ -20,6 +20,9 @@ final class AppEnvironment {
     /// synchronously. Writes go through this object and refresh the cache.
     private(set) var settings = AppSettings()
     private(set) var progress = UserProgress()
+    /// How far the user's own time estimates run. Cached so the estimate picker
+    /// and the completion screen can read it without a fetch.
+    private(set) var calibration = EstimateCalibration.unknown
 
     private(set) var isReady = false
     /// Set when the persistent store could not be opened and the app fell back
@@ -65,6 +68,7 @@ final class AppEnvironment {
             // Recomputed at launch so a streak that survived on freezes, or one
             // that quietly lapsed, is right before the Today screen draws it.
             progress = try await rewards.refreshStreak()
+            await refreshCalibration()
 
             isReady = true
             lastError = nil
@@ -79,6 +83,17 @@ final class AppEnvironment {
             progress = try await repositories.progress.progress()
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    /// Recomputed from finished tasks rather than accumulated, so a deleted or
+    /// reopened task is reflected immediately.
+    func refreshCalibration() async {
+        do {
+            let tasks = try await repositories.tasks.tasks(includeCompleted: true)
+            calibration = EstimateCalibrator.calibrate(tasks)
+        } catch {
+            calibration = .unknown
         }
     }
 

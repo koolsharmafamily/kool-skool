@@ -4,28 +4,38 @@ import SwiftUI
 ///
 /// Other tasks are not merely de-emphasised here — they are not on screen at
 /// all, which is the point of the mode.
+///
+/// Two things are doing the time-blindness work: the disc, which drains without
+/// needing to be read, and the background, which warms continuously toward the
+/// overrun accent. Neither asks for attention; both are there when it wanders.
 struct ActiveSessionView: View {
     let snapshot: SessionSnapshot
     var taskTitle: String?
+    var showsDigits: Bool = true
     let onEndEarly: () -> Void
 
     @State private var isConfirmingEnd = false
 
     var body: some View {
-        KSScreen(state: snapshot.energyState) {
+        ZStack {
+            AmbientBackground(progress: snapshot.ambientProgress)
+
             VStack(spacing: KSSpacing.lg) {
                 header
-                Spacer(minLength: KSSpacing.md)
+                Spacer(minLength: KSSpacing.sm)
 
-                SessionTimerRing(snapshot: snapshot)
+                DepletingDisc(snapshot: snapshot, showsDigits: showsDigits)
                     .frame(maxWidth: 320)
-                    .aspectRatio(1, contentMode: .fit)
 
-                Spacer(minLength: KSSpacing.md)
+                Spacer(minLength: KSSpacing.sm)
                 footer
             }
+            .padding(.horizontal, KSSpacing.screenMargin)
             .padding(.vertical, KSSpacing.lg)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .ksEnergyState(snapshot.energyState)
+        .tint(KSColor.accent(snapshot.energyState))
         .confirmationDialog(
             "End this session?",
             isPresented: $isConfirmingEnd,
@@ -83,8 +93,7 @@ struct ActiveSessionView: View {
             return "Stopping is how a Flowmodoro session finishes. It counts."
         }
 
-        let done = snapshot.progress
-        if done >= FocusRules.completionThreshold {
+        if snapshot.progress >= FocusRules.completionThreshold {
             return "You are far enough in that this still counts as done."
         }
         return "Nothing is lost and your streak is fine. The session just gets recorded as it happened."
@@ -111,7 +120,7 @@ struct ActiveSessionView: View {
     )
 }
 
-#Preview("Active — nearly over") {
+#Preview("Active — nearly over, no digits") {
     var session = FocusSession()
     session.mode = .justStart
     session.startedAt = Date().addingTimeInterval(-4.5 * 60)
@@ -121,6 +130,7 @@ struct ActiveSessionView: View {
     return ActiveSessionView(
         snapshot: SessionSnapshot(session: session, now: Date()),
         taskTitle: nil,
+        showsDigits: false,
         onEndEarly: {}
     )
 }

@@ -81,7 +81,7 @@ struct SessionCompleteView: View {
     /// demand, and saying no costs nothing.
     ///
     /// Answering yes credits the session's real duration to the task, which is
-    /// what the estimate calibration in Milestone 5 reads.
+    /// what the estimate calibration reads.
     private func taskCard(_ task: FocusTask) -> some View {
         KSCard {
             VStack(alignment: .leading, spacing: KSSpacing.xs) {
@@ -93,6 +93,14 @@ struct SessionCompleteView: View {
                     Label("Marked done", systemImage: "checkmark.circle.fill")
                         .ksFont(KSFont.caption)
                         .foregroundStyle(KSColor.accent(.focusing))
+
+                    // Arithmetic, not a verdict. Being wrong about how long
+                    // something takes is the condition, not a failing.
+                    if let delta = EstimateDelta(task: task) {
+                        Text(delta.summary)
+                            .ksFont(KSFont.caption)
+                            .foregroundStyle(KSColor.textSecondary)
+                    }
                 } else {
                     HStack(spacing: KSSpacing.sm) {
                         Text("Finished it?")
