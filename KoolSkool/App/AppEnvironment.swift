@@ -15,6 +15,7 @@ final class AppEnvironment {
     /// one place that knows whether a session is running.
     let focusEngine: FocusEngine
     let rewards: RewardService
+    let bodyDoubling: BodyDoublingController
 
     /// Cached copies of the two singleton rows, so screens can read them
     /// synchronously. Writes go through this object and refresh the cache.
@@ -46,13 +47,18 @@ final class AppEnvironment {
 
         let rewards = RewardService(repositories: repositories, clock: clock, rolls: rolls)
         self.rewards = rewards
+
+        let bodyDoubling = BodyDoublingController(repositories: repositories)
+        self.bodyDoubling = bodyDoubling
+
         focusEngine = FocusEngine(
             repositories: repositories,
             clock: clock,
             haptics: haptics,
             alerts: alerts,
             idleGuard: idleGuard,
-            rewards: rewards
+            rewards: rewards,
+            bodyDoubling: bodyDoubling
         )
     }
 
@@ -65,6 +71,7 @@ final class AppEnvironment {
             focusEngine.apply(settings: settings)
 
             try await rewards.prepareCatalogue()
+            await bodyDoubling.refreshCatalogue()
             // Recomputed at launch so a streak that survived on freezes, or one
             // that quietly lapsed, is right before the Today screen draws it.
             progress = try await rewards.refreshStreak()

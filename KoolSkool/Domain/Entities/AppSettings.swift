@@ -34,6 +34,15 @@ struct AppSettings: SyncableRecord, Codable {
     var soundsEnabled: Bool = true
     var soundscapeKey: String?
 
+    // MARK: Company
+
+    /// Replaces the intent field on the setup screen with a spoken-aloud pledge.
+    /// Off by default — it is a nudge that works well for some people and reads
+    /// as pressure to others.
+    var commitmentCardEnabled: Bool = false
+    /// Whether the companion appears on the session screen.
+    var companionEnabled: Bool = true
+
     // MARK: Accessibility
 
     /// Forces reduced motion even when the system setting is off. The system

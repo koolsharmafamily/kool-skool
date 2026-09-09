@@ -22,6 +22,9 @@ final class SDAppSettings {
     var soundsEnabled: Bool = true
     var soundscapeKey: String?
 
+    var commitmentCardEnabled: Bool = false
+    var companionEnabled: Bool = true
+
     var reduceMotionOverride: Bool = false
 
     var traditionRaw: String = Tradition.secular.rawValue
@@ -73,6 +76,8 @@ extension SDAppSettings {
             hapticsEnabled: hapticsEnabled,
             soundsEnabled: soundsEnabled,
             soundscapeKey: soundscapeKey,
+            commitmentCardEnabled: commitmentCardEnabled,
+            companionEnabled: companionEnabled,
             reduceMotionOverride: reduceMotionOverride,
             tradition: tradition,
             offerBreakPractice: offerBreakPractice,
@@ -93,6 +98,8 @@ extension SDAppSettings {
         hapticsEnabled = dto.hapticsEnabled
         soundsEnabled = dto.soundsEnabled
         soundscapeKey = dto.soundscapeKey
+        commitmentCardEnabled = dto.commitmentCardEnabled
+        companionEnabled = dto.companionEnabled
         reduceMotionOverride = dto.reduceMotionOverride
         traditionRaw = dto.tradition.rawValue
         offerBreakPractice = dto.offerBreakPractice

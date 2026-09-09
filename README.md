@@ -12,11 +12,19 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 5 complete — depleting disc, ambient colour shift, time-check pulses, estimate calibration.**
+**Milestone 6 complete — focus companion, ambient soundscapes, commitment card.**
 
-The full loop runs: dump what's in your head, pin up to three for today, break one into steps, start a session, watch a disc drain while the background warms toward the deadline, get paid for it, and watch a streak build that forgives two missed days a month without being asked.
+The full loop runs: dump what's in your head, pin up to three for today, break one into steps, say out loud what you're about to do, start a session with something working alongside you and a noise bed running, watch a disc drain while the background warms toward the deadline, get paid for it, and watch a streak build that forgives two missed days a month without being asked.
 
-Remaining milestones, in order: body doubling → check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
+Remaining milestones, in order: check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
+
+### The audio tradeoff you should know about
+
+The spec asks soundscapes to mix with other audio, respect the silent switch, **and** keep playing in the background. iOS gives you two of those. `.ambient` mixes and respects the switch but dies the moment the app leaves the foreground; `.playback` mixes and survives backgrounding but ignores the switch.
+
+This ships `.playback` + `.mixWithOthers`, so **the silent switch does not stop a soundscape.** A focus timer whose bed cuts out when the screen locks is broken in a way people notice within one session, whereas the switch is usually flipped to stop notifications rather than deliberate media. The app's own off switch is on the session screen and in settings. Say if you'd rather have it the other way round — it's a one-line change in `SoundscapeEngine.activateSession()`.
+
+Background audio also means the app now declares `UIBackgroundModes = audio`. That is visible to App Review and they will ask what it's for.
 
 ---
 
@@ -40,7 +48,8 @@ KoolSkool/
 │   ├── Focus/      The session engine, its pure decision logic, and its screens
 │   ├── Rewards/    XP, coins, streaks, the celebration, the collection
 │   ├── Tasks/      Today, the task list, the step splitter, mode suggestion
-│   └── TimeBlindness/  The disc, the ambient shift, estimate calibration
+│   ├── TimeBlindness/  The disc, the ambient shift, estimate calibration
+│   └── BodyDoubling/   The companion, the audio stack, the commitment card
 ├── Domain/         Pure Sendable value types. No SwiftData, no SwiftUI.
 │   ├── Core/       Clock, sync metadata, session modes, shared enums
 │   ├── Entities/   The eleven entities, as structs
@@ -166,8 +175,8 @@ All reversible, all worth your veto.
 11. **Freezes spent on a streak that broke anyway are refunded.** They kept nothing alive, so charging for them would be a quiet penalty.
 12. **The freeze note only appears when a freeze was actually used.** Nobody needs telling about a safety net they are not standing on.
 13. **A cosmetic chest with nothing left to give pays coins instead.** A chest that opens onto nothing is worse than no chest.
-14. **The Collection is honest about what equipping does today.** Companions and soundscapes don't exist until Milestone 6, and the screen says so rather than selling something that isn't there. If you'd rather the whole screen waited until those features land, it's one route to delete.
-15. **Sound is missing from the celebration.** The spec asks for confetti, haptics, sound, and a count-up; there's no audio stack until Milestone 6, so the other three ship now and sound joins them there.
+14. **The Collection is honest about what equipping does today.** Companion skins and soundscapes now do something; themes and timer styles still do not, and the screen says so rather than selling something that is not there.
+15. **Sound was missing from the celebration** until Milestone 6 brought the audio stack. It plays now.
 
 **Time blindness (M5)**
 
@@ -178,6 +187,15 @@ All reversible, all worth your veto.
 20. **Calibration uses the median, not the mean.** One task estimated at fifteen minutes that became a four-hour rabbit hole would drag a mean far enough to make every suggestion useless.
 21. **The app says nothing about your estimates until ten finished tasks.** Nine is a hunch. Inventing a pattern from it would be the app making things up about the user.
 22. **Auto-padding stores the padded number, and the row says so.** Tap 30, record 48, with a note explaining why. The alternative — showing padded numbers on the buttons — makes the picker read as nonsense.
+
+**Body doubling (M6)**
+
+23. **The silent switch does not mute soundscapes.** See the tradeoff above. Reversible in one line.
+24. **Three soundscapes are generated, two are honestly missing.** Brown, pink and rain are synthesised in `NoiseSource` — no assets, no audible loop point, nothing added to the bundle. Café and Library cannot be faked, so they report themselves unavailable and say why rather than shipping silence behind a name. Drop `soundscape-cafe.m4a` and `soundscape-library.m4a` into the bundle and they light up on their own.
+25. **The companion is SF Symbols on a drawn desk, not artwork.** No assets, it takes the energy-state colour for free, and `symbolEffect` gives the milestone reactions without a sprite sheet. If you want a real illustrated character this is the seam to replace, and only `CompanionView` changes.
+26. **It reacts four times a session and no more.** Quarter, half, three-quarters, nearly done. A companion that responds to everything is a pet demanding attention, which is the opposite of what body doubling is for.
+27. **The commitment card replaces the intent field rather than joining it.** Both ask nearly the same question and the setup screen has ten seconds before people bounce. Off by default; it reads as pressure to some people.
+28. **The celebration chime is synthesised too.** Two decaying partials built into a buffer — the sound the spec asked for in Milestone 4, arriving here with the audio stack, still with no asset.
 
 ---
 
@@ -198,6 +216,8 @@ All reversible, all worth your veto.
 - **Time checks** — off by default, fires on the interval, one pulse after backgrounding rather than a burst, no backlog replayed on restore
 - **Depleting disc** — empty at zero, whole circle at one, clamped above one, animatable as one continuous value
 - **Estimate calibration** — silence below ten samples, median resisting a 40x outlier, padding clamped at 0.5–3x, per-task deltas
+- **Noise generation** — every bed stays inside full scale and finite, brown reads smoother than pink once normalised by RMS, a zero seed does not lock the generator at silence, filters reset without clicking
+- **Body doubling** — milestones fire once each and do not stack when several bands are skipped at once, soundscapes appear only when both owned and playable, companion state through start, finish and reset
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks
 
@@ -209,7 +229,8 @@ Written as protocols now, implemented later, so nothing has to be retrofitted:
 - Live Activities and Dynamic Island — Milestone 9.
 - Home screen and Lock Screen widgets — Milestone 9, with Live Activities.
 - A real Settings screen — Milestone 10. `TimeSettingsSheet` carries the Milestone 5 switches in the meantime, because a feature nobody can reach is a feature nobody can judge; it folds into Settings when that lands.
-- The commitment card — Milestone 6. `FocusSession.commitment` and `SessionPlan.commitment` exist and are persisted.
+- Real multiplayer co-working rooms — out of scope for v1, they need a backend. `BodyDoublingProvider` is the seam: `LocalCompanionProvider` returns one synthetic coworker, a `RemoteRoomProvider` would return several real ones, and the session screen already renders a list rather than a single figure.
+- Recorded soundscapes — Café and Library expect `soundscape-cafe.m4a` and `soundscape-library.m4a` in the bundle and light up on their own once those exist.
 - AI-assisted task breakdown — not in v1 and not stubbed. The offline template row in the step editor is the shape it would slot into if it ever ships.
 - XP, coins, streaks, the celebration moment, and the post-session energy check-in — Milestones 4 and 7. The completion screen leaves that space empty rather than filling it with a placeholder.
 

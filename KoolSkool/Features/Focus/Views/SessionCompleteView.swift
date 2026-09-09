@@ -30,7 +30,18 @@ struct SessionCompleteView: View {
 
                 headline
                 if let award, award.hasAnythingToShow { RewardSummary(award: award) }
-                if !session.intent.isEmpty { intentCard }
+
+                // The commitment replaces the intent when it was used, so only
+                // one of these ever appears.
+                if !session.commitment.isEmpty {
+                    CommitmentRecap(
+                        commitment: session.commitment,
+                        minutes: minutes,
+                        kept: session.wasCompleted
+                    )
+                } else if !session.intent.isEmpty {
+                    intentCard
+                }
                 if let task = linkedTask { taskCard(task) }
 
                 Spacer(minLength: KSSpacing.md)

@@ -13,6 +13,7 @@ struct SessionSetupView: View {
 
     @State private var mode: SessionMode
     @State private var intent: String = ""
+    @State private var commitment: String = ""
     @State private var resistance: Rating?
     @FocusState private var intentFocused: Bool
 
@@ -36,7 +37,19 @@ struct SessionSetupView: View {
             VStack(alignment: .leading, spacing: KSSpacing.lg) {
                 if let task = preselectedTask { taskCard(task) }
                 modeSection
-                intentSection
+
+                // One or the other, never both — they ask nearly the same
+                // question and this screen has ten seconds before people bounce.
+                if settings.commitmentCardEnabled {
+                    CommitmentField(
+                        text: $commitment,
+                        minutes: plannedMinutes,
+                        isCountUp: mode.defaultProfile.countsUp
+                    )
+                } else {
+                    intentSection
+                }
+
                 resistanceSection
                 Spacer(minLength: 0)
                 KSPrimaryButton(title: startTitle, systemImage: "play.fill") {
@@ -167,13 +180,17 @@ struct SessionSetupView: View {
             plannedDuration: settings.resolvedProfile(for: mode).workDuration,
             intent: intent,
             resistance: resistance,
-            taskID: preselectedTask?.id
+            taskID: preselectedTask?.id,
+            commitment: commitment
         )
     }
 
+    private var plannedMinutes: Int {
+        Int(settings.resolvedProfile(for: mode).workDuration / 60)
+    }
+
     private var startTitle: String {
-        let minutes = Int(settings.resolvedProfile(for: mode).workDuration / 60)
-        return mode.defaultProfile.countsUp ? "Start" : "Start \(minutes) minutes"
+        mode.defaultProfile.countsUp ? "Start" : "Start \(plannedMinutes) minutes"
     }
 
     static func resistanceLabel(_ rating: Rating) -> String {

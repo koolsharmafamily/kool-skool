@@ -41,7 +41,9 @@ struct RootView: View {
             ActiveSessionView(
                 snapshot: snapshot,
                 taskTitle: engine.linkedTask?.startableLabel,
-                showsDigits: app.settings.showDigitalTimer
+                showsDigits: app.settings.showDigitalTimer,
+                showsCompanion: app.settings.companionEnabled,
+                bodyDoubling: app.bodyDoubling
             ) {
                 Task { await engine.endEarly() }
             }

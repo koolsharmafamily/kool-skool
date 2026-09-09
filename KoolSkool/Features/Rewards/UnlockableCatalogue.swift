@@ -42,6 +42,7 @@ enum UnlockableCatalogue {
         make("33333333-0000-0000-0000-000000000002", "sound.cafe", .soundscape, "Café", "Other people, working.", coins: 100),
         make("33333333-0000-0000-0000-000000000003", "sound.library", .soundscape, "Library", "Almost nothing, on purpose.", level: 4),
         make("33333333-0000-0000-0000-000000000004", "sound.brown", .soundscape, "Brown Noise", "A wall of low static.", level: 5),
+        make("33333333-0000-0000-0000-000000000005", "sound.pink", .soundscape, "Pink Noise", "Softer than white, less heavy than brown.", level: 2),
     ]
 
     // MARK: Timer styles

@@ -12,6 +12,8 @@ struct ActiveSessionView: View {
     let snapshot: SessionSnapshot
     var taskTitle: String?
     var showsDigits: Bool = true
+    var showsCompanion: Bool = true
+    var bodyDoubling: BodyDoublingController?
     let onEndEarly: () -> Void
 
     @State private var isConfirmingEnd = false
@@ -76,6 +78,8 @@ struct ActiveSessionView: View {
 
     private var footer: some View {
         VStack(spacing: KSSpacing.sm) {
+            company
+
             KSSecondaryButton(title: "End early", systemImage: "stop.fill") {
                 isConfirmingEnd = true
             }
@@ -84,6 +88,21 @@ struct ActiveSessionView: View {
                 .ksFont(KSFont.caption)
                 .foregroundStyle(KSColor.textTertiary)
                 .multilineTextAlignment(.center)
+        }
+    }
+
+    /// The company. Ambient by design — a companion that moves constantly is a
+    /// pet demanding attention, which is the opposite of what this is for.
+    @ViewBuilder
+    private var company: some View {
+        if let bodyDoubling {
+            VStack(spacing: KSSpacing.xs) {
+                if showsCompanion, let coworker = bodyDoubling.coworkers.first {
+                    CompanionView(coworker: coworker, milestoneCount: bodyDoubling.milestoneCount)
+                }
+
+                SoundscapeControl(controller: bodyDoubling)
+            }
         }
     }
 

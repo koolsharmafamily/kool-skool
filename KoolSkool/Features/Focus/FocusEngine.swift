@@ -33,6 +33,8 @@ final class FocusEngine {
     private let alerts: any SessionAlertScheduling
     private let idleGuard: any ScreenIdleGuarding
     private let rewards: RewardService
+    /// Optional so the engine stays testable without an audio stack.
+    private let bodyDoubling: BodyDoublingController?
 
     // MARK: Observable state
 
@@ -56,6 +58,7 @@ final class FocusEngine {
 
     func apply(settings: AppSettings) {
         self.settings = settings
+        bodyDoubling?.settings = settings
         syncIdleGuard()
     }
 
@@ -75,8 +78,10 @@ final class FocusEngine {
         alerts: any SessionAlertScheduling = NoOpSessionAlertScheduler(),
         idleGuard: any ScreenIdleGuarding = ScreenIdleGuard(),
         rewards: RewardService? = nil,
+        bodyDoubling: BodyDoublingController? = nil,
         ticksAutomatically: Bool = true
     ) {
+        self.bodyDoubling = bodyDoubling
         self.repositories = repositories
         self.clock = clock
         self.haptics = haptics
@@ -190,6 +195,7 @@ final class FocusEngine {
         linkedTask = nil
         lastAward = nil
         status = .idle
+        Task { await bodyDoubling?.reset() }
     }
 
     /// "Did you finish it?" from the completion screen.
@@ -236,6 +242,7 @@ final class FocusEngine {
         }
 
         fireTimeCheckIfDue(elapsed: current.elapsed(asOf: now))
+        await bodyDoubling?.sessionDidProgress(to: current.progress(asOf: now))
         await writeHeartbeatIfDue()
     }
 
@@ -283,6 +290,7 @@ final class FocusEngine {
     // MARK: Internals
 
     private func beginRunning(_ session: FocusSession) async {
+        await bodyDoubling?.sessionDidStart(session)
         lastHeartbeatAt = session.lastHeartbeatAt
         // Restoring mid-session must not replay every pulse that was missed.
         let interval = TimeInterval(max(1, settings.timeCheckIntervalMinutes) * 60)
@@ -320,6 +328,8 @@ final class FocusEngine {
             finishedSession = saved
             status = .finished
             haptics.fire(saved.wasCompleted ? .complete : .tap)
+            // Stops the bed and plays the completion chime.
+            await bodyDoubling?.sessionDidEnd(saved, completed: saved.wasCompleted)
 
             // Rewards are deliberately after the session is safely stored. A
             // failure to pay out must never cost someone the record of the work.

@@ -19,12 +19,13 @@ struct TimeSettingsSheet: View {
                         discSection
                         timeCheckSection
                         calibrationSection
+                        companySection
                     }
                     .padding(.vertical, KSSpacing.lg)
                 }
                 .scrollIndicators(.hidden)
             }
-            .navigationTitle("Time & attention")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -125,6 +126,42 @@ struct TimeSettingsSheet: View {
                         .ksFont(KSFont.caption)
                         .foregroundStyle(KSColor.textSecondary)
                 }
+            }
+        }
+    }
+
+    private var companySection: some View {
+        KSCard {
+            VStack(alignment: .leading, spacing: KSSpacing.sm) {
+                Text("Company")
+                    .ksFont(KSFont.headline)
+                    .foregroundStyle(KSColor.textPrimary)
+
+                Toggle(isOn: binding(\.companionEnabled)) {
+                    Text("Show the companion")
+                        .ksFont(KSFont.body)
+                        .foregroundStyle(KSColor.textPrimary)
+                }
+
+                Toggle(isOn: binding(\.commitmentCardEnabled)) {
+                    Text("Commitment card")
+                        .ksFont(KSFont.body)
+                        .foregroundStyle(KSColor.textPrimary)
+                }
+
+                Text("Say what you are about to do, in a sentence, and see it again at the end. It replaces the intent field rather than adding to it.")
+                    .ksFont(KSFont.caption)
+                    .foregroundStyle(KSColor.textSecondary)
+
+                Toggle(isOn: binding(\.soundsEnabled)) {
+                    Text("Sound")
+                        .ksFont(KSFont.body)
+                        .foregroundStyle(KSColor.textPrimary)
+                }
+
+                Text("Soundscapes keep playing when the screen locks, which means they do not follow the silent switch. Turn them off here or from the session screen.")
+                    .ksFont(KSFont.caption)
+                    .foregroundStyle(KSColor.textSecondary)
             }
         }
     }
