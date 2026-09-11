@@ -11,9 +11,12 @@ struct SessionPlan: Equatable, Sendable {
     var intent: String
     var resistance: Rating?
     var taskID: UUID?
-    /// The commitment card. Written in Milestone 6; the field is here so the
-    /// session record does not need changing then.
+    /// The commitment card, when it is switched on.
     var commitment: String
+    /// The optional pre-session check-in. Saved as a separate `CheckIn` once
+    /// the session exists, so a skipped check-in leaves no row at all.
+    var energy: Rating?
+    var mood: Rating?
 
     init(
         mode: SessionMode,
@@ -21,7 +24,9 @@ struct SessionPlan: Equatable, Sendable {
         intent: String = "",
         resistance: Rating? = nil,
         taskID: UUID? = nil,
-        commitment: String = ""
+        commitment: String = "",
+        energy: Rating? = nil,
+        mood: Rating? = nil
     ) {
         self.mode = mode
         self.plannedDuration = plannedDuration
@@ -29,7 +34,11 @@ struct SessionPlan: Equatable, Sendable {
         self.resistance = resistance
         self.taskID = taskID
         self.commitment = commitment
+        self.energy = energy
+        self.mood = mood
     }
+
+    var hasCheckIn: Bool { energy != nil || mood != nil }
 
     static func make(mode: SessionMode, settings: AppSettings) -> SessionPlan {
         let profile = settings.resolvedProfile(for: mode)

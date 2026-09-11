@@ -9,7 +9,8 @@ extension AppEnvironment {
             repositories: UnavailableRepositoryProvider(reason: "Preview has no store."),
             clock: PreviewClock.fixed,
             haptics: NoOpHaptics(),
-            idleGuard: NoOpScreenIdleGuard()
+            idleGuard: NoOpScreenIdleGuard(),
+            reminders: RecordingReminderScheduler()
         )
     }
 }

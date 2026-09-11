@@ -25,6 +25,12 @@ final class SDAppSettings {
     var commitmentCardEnabled: Bool = false
     var companionEnabled: Bool = true
 
+    var preSessionCheckIn: Bool = false
+    var postSessionCheckIn: Bool = true
+    var medicationTrackingEnabled: Bool = false
+    var medicationReminderEnabled: Bool = false
+    var medicationReminderMinutes: Int = 480
+
     var reduceMotionOverride: Bool = false
 
     var traditionRaw: String = Tradition.secular.rawValue
@@ -78,6 +84,11 @@ extension SDAppSettings {
             soundscapeKey: soundscapeKey,
             commitmentCardEnabled: commitmentCardEnabled,
             companionEnabled: companionEnabled,
+            preSessionCheckIn: preSessionCheckIn,
+            postSessionCheckIn: postSessionCheckIn,
+            medicationTrackingEnabled: medicationTrackingEnabled,
+            medicationReminderEnabled: medicationReminderEnabled,
+            medicationReminderMinutes: medicationReminderMinutes,
             reduceMotionOverride: reduceMotionOverride,
             tradition: tradition,
             offerBreakPractice: offerBreakPractice,
@@ -100,6 +111,11 @@ extension SDAppSettings {
         soundscapeKey = dto.soundscapeKey
         commitmentCardEnabled = dto.commitmentCardEnabled
         companionEnabled = dto.companionEnabled
+        preSessionCheckIn = dto.preSessionCheckIn
+        postSessionCheckIn = dto.postSessionCheckIn
+        medicationTrackingEnabled = dto.medicationTrackingEnabled
+        medicationReminderEnabled = dto.medicationReminderEnabled
+        medicationReminderMinutes = dto.medicationReminderMinutes
         reduceMotionOverride = dto.reduceMotionOverride
         traditionRaw = dto.tradition.rawValue
         offerBreakPractice = dto.offerBreakPractice

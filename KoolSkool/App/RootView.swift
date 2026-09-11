@@ -9,6 +9,7 @@ struct RootView: View {
     @State private var todayModel: TodayModel?
     @State private var taskListModel: TaskListModel?
     @State private var collectionModel: CollectionModel?
+    @State private var insightsModel: InsightsModel?
     @State private var path: [TaskRoute] = []
     @State private var setupTask: SetupRequest?
     @State private var isPresentingTimeSettings = false
@@ -53,6 +54,9 @@ struct RootView: View {
                 session: finished,
                 linkedTask: engine.linkedTask,
                 award: engine.lastAward,
+                onCheckIn: app.settings.postSessionCheckIn
+                    ? { quality in Task { await engine.recordPostCheckIn(quality: quality) } }
+                    : nil,
                 offersExtension: engine.offersExtension,
                 extensionMode: .classicPomodoro,
                 onContinue: { mode in Task { await engine.continueSession(as: mode) } },
@@ -80,7 +84,9 @@ struct RootView: View {
                         onChooseMode: { setupTask = SetupRequest(task: nil) },
                         onEditTask: { task in path.append(.detail(task)) },
                         onOpenAllTasks: { path.append(.list) },
-                        onOpenCollection: { path.append(.collection) }
+                        onOpenCollection: { path.append(.collection) },
+                        medication: app.settings.medicationTrackingEnabled ? app.medication : nil,
+                        onOpenMedication: { path.append(.medication) }
                     )
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -91,6 +97,14 @@ struct RootView: View {
                 destination(for: route)
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        path.append(.insights)
+                    } label: {
+                        Label("Insights", systemImage: "chart.bar.xaxis")
+                    }
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isPresentingTimeSettings = true
@@ -158,6 +172,22 @@ struct RootView: View {
                     .onDisappear { Task { await refreshAll() } }
             }
 
+        case .insights:
+            if let insightsModel {
+                InsightsView(
+                    model: insightsModel,
+                    includesMedication: app.settings.medicationTrackingEnabled
+                )
+            }
+
+        case .medication:
+            MedicationView(
+                model: app.medication,
+                settings: app.settings,
+                onChangeSettings: { mutate in Task { await app.updateSettings(mutate) } }
+            )
+            .onDisappear { Task { await app.medication.load() } }
+
         case .gallery:
             DesignSystemGallery()
         }
@@ -196,6 +226,9 @@ struct RootView: View {
         if collectionModel == nil {
             collectionModel = CollectionModel(repositories: app.repositories, rewards: app.rewards)
         }
+        if insightsModel == nil {
+            insightsModel = InsightsModel(repositories: app.repositories, clock: app.clock)
+        }
         await refreshAll()
     }
 
@@ -204,6 +237,9 @@ struct RootView: View {
         await taskListModel?.load()
         await app.refreshProgress()
         await app.refreshCalibration()
+        if app.settings.medicationTrackingEnabled {
+            await app.medication.load()
+        }
     }
 }
 
@@ -246,6 +282,8 @@ enum TaskRoute: Hashable {
     case list
     case detail(FocusTask)
     case collection
+    case insights
+    case medication
     case gallery
 }
 

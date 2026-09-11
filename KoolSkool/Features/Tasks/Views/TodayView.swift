@@ -14,6 +14,10 @@ struct TodayView: View {
     let onEditTask: (FocusTask) -> Void
     let onOpenAllTasks: () -> Void
     let onOpenCollection: () -> Void
+    /// Nil unless the user has switched medication tracking on. Nothing about
+    /// medication renders otherwise.
+    var medication: MedicationModel?
+    var onOpenMedication: () -> Void = {}
 
     @State private var isPresentingBrainDump = false
     @State private var isPresentingPicker = false
@@ -33,6 +37,10 @@ struct TodayView: View {
                     mustList
                     startSection
                     secondaryRow
+
+                    if let medication {
+                        MedicationRow(model: medication, onOpen: onOpenMedication)
+                    }
 
                     if let error = model.error {
                         Text(error)

@@ -107,7 +107,14 @@ enum SessionEndReason: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// A two-tap energy and mood reading, taken either side of a session.
+/// A reading taken either side of a session.
+///
+/// Before: energy and mood, two taps. After: one tap, "how did that go?" —
+/// stored as `focusQuality` rather than squeezed into `mood`, because it is a
+/// different question and it is the one the Insights energy curve is built on.
+///
+/// Every field is optional, and every check-in is skippable. A check-in the
+/// app has to nag for is data it should not have.
 struct CheckIn: SyncableRecord, Codable {
     var id: UUID = UUID()
     var createdAt: Date = .now
@@ -119,6 +126,10 @@ struct CheckIn: SyncableRecord, Codable {
     var mood: Rating?
     var phase: CheckInPhase = .pre
     var sessionID: UUID?
+    /// Post-session only.
+    var focusQuality: Rating?
+
+    var isEmpty: Bool { energy == nil && mood == nil && focusQuality == nil }
 }
 
 /// A log entry, and only a log entry.

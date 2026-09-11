@@ -16,6 +16,9 @@ final class AppEnvironment {
     let focusEngine: FocusEngine
     let rewards: RewardService
     let bodyDoubling: BodyDoublingController
+    /// Owned here rather than by a screen, because the Today row and the full
+    /// log have to agree about whether today is logged.
+    let medication: MedicationModel
 
     /// Cached copies of the two singleton rows, so screens can read them
     /// synchronously. Writes go through this object and refresh the cache.
@@ -38,12 +41,14 @@ final class AppEnvironment {
         alerts: any SessionAlertScheduling = NoOpSessionAlertScheduler(),
         idleGuard: any ScreenIdleGuarding = ScreenIdleGuard(),
         rolls: @escaping @Sendable () -> RewardRolls = { RewardRolls.random() },
+        reminders: any MedicationReminderScheduling = LocalMedicationReminderScheduler(),
         storeWarning: String? = nil
     ) {
         self.repositories = repositories
         self.clock = clock
         self.haptics = haptics
         self.storeWarning = storeWarning
+        medication = MedicationModel(repositories: repositories, clock: clock, reminders: reminders)
 
         let rewards = RewardService(repositories: repositories, clock: clock, rolls: rolls)
         self.rewards = rewards
@@ -76,6 +81,14 @@ final class AppEnvironment {
             // that quietly lapsed, is right before the Today screen draws it.
             progress = try await rewards.refreshStreak()
             await refreshCalibration()
+
+            // Re-arms the reminder in case a reinstall or a cleared notification
+            // centre dropped it. Never prompts — permission is only ever asked
+            // for when someone switches the reminder on.
+            await medication.restoreReminder(settings: settings)
+            if settings.medicationTrackingEnabled {
+                await medication.load()
+            }
 
             isReady = true
             lastError = nil
@@ -110,9 +123,21 @@ final class AppEnvironment {
         var draft = settings
         mutate(&draft)
         do {
+            let wasTracking = settings.medicationTrackingEnabled
             settings = try await repositories.settings.update(draft)
             haptics.isEnabled = settings.hapticsEnabled
             focusEngine.apply(settings: settings)
+
+            // Switching tracking off has to take the reminder with it. Hiding
+            // the UI while a notification keeps arriving every morning would be
+            // the worst of both.
+            if wasTracking && !settings.medicationTrackingEnabled {
+                var disarmed = settings
+                disarmed.medicationReminderEnabled = false
+                settings = try await repositories.settings.update(disarmed)
+                await medication.restoreReminder(settings: settings)
+            }
+
             lastError = nil
         } catch {
             lastError = error.localizedDescription

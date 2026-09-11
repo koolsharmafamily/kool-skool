@@ -12,11 +12,11 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 6 complete — focus companion, ambient soundscapes, commitment card.**
+**Milestone 7 complete — check-ins, the medication log, and Insights with Swift Charts.**
 
 The full loop runs: dump what's in your head, pin up to three for today, break one into steps, say out loud what you're about to do, start a session with something working alongside you and a noise bed running, watch a disc drain while the background warms toward the deadline, get paid for it, and watch a streak build that forgives two missed days a month without being asked.
 
-Remaining milestones, in order: check-ins and insights → stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
+Remaining milestones, in order: stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
 
 ### The audio tradeoff you should know about
 
@@ -25,6 +25,12 @@ The spec asks soundscapes to mix with other audio, respect the silent switch, **
 This ships `.playback` + `.mixWithOthers`, so **the silent switch does not stop a soundscape.** A focus timer whose bed cuts out when the screen locks is broken in a way people notice within one session, whereas the switch is usually flipped to stop notifications rather than deliberate media. The app's own off switch is on the session screen and in settings. Say if you'd rather have it the other way round — it's a one-line change in `SoundscapeEngine.activateSession()`.
 
 Background audio also means the app now declares `UIBackgroundModes = audio`. That is visible to App Review and they will ask what it's for.
+
+### Health-adjacent data
+
+Check-ins, the medication log, and reflections conform to `HealthAdjacentRecord`. Today that is only a label — there is no sync and no analytics, ever. It exists so the future sync engine has exactly one thing to check: those records are **excluded by default** and including them takes its own consent, separate from syncing tasks and sessions. A test pins the list, so changing it is a deliberate privacy decision rather than an accident.
+
+Nothing about medication appears anywhere until someone switches tracking on. The app has no drug database and knows nothing about any medication — the only facts it holds are the ones typed into it. The daily reminder's lock-screen text is "Your daily reminder.", and a test fails if a future edit makes it say otherwise.
 
 ---
 
@@ -49,6 +55,8 @@ KoolSkool/
 │   ├── Rewards/    XP, coins, streaks, the celebration, the collection
 │   ├── Tasks/      Today, the task list, the step splitter, mode suggestion
 │   ├── TimeBlindness/  The disc, the ambient shift, estimate calibration
+│   ├── CheckIns/   Check-ins, the medication log and its reminder
+│   ├── Insights/   The calendar, the time-of-day chart, every observation sentence
 │   └── BodyDoubling/   The companion, the audio stack, the commitment card
 ├── Domain/         Pure Sendable value types. No SwiftData, no SwiftUI.
 │   ├── Core/       Clock, sync metadata, session modes, shared enums
@@ -197,6 +205,18 @@ All reversible, all worth your veto.
 27. **The commitment card replaces the intent field rather than joining it.** Both ask nearly the same question and the setup screen has ten seconds before people bounce. Off by default; it reads as pressure to some people.
 28. **The celebration chime is synthesised too.** Two decaying partials built into a buffer — the sound the spec asked for in Milestone 4, arriving here with the audio stack, still with no asset.
 
+**Check-ins and Insights (M7)**
+
+29. **The pre-session check-in is off by default; the post-session one is on.** The spec asks for two taps of energy and mood before a session *and* says of the setup screen "do not add more steps — this is where users bounce". Those conflict, so the setup screen stays as it was unless someone asks for more. The one-tap "how did that go?" lands on the completion screen, which is already a pause.
+30. **"How did that go?" is its own field, `focusQuality`, not reused `mood`.** It's a different question, and it's the one the chart of how sessions felt is built on.
+31. **The chart is by time of day, not by hour.** Twenty-four bars of one person's sessions is mostly empty bars and noise — two sessions at 3pm is not a pattern. Five named blocks give each bar enough in it to mean something. Bars with fewer than five sessions are drawn faded rather than hidden or shown at full strength.
+32. **Every sentence waits for enough data.** Two weeks and ten sessions for the time-of-day line, five sessions a block, a week of days on each side for medication. Below that, the screen says how long until it can say something, instead of guessing.
+33. **"About the same" is reported as a finding.** Below a 15% difference the sentence says sessions go equally well whenever, rather than inflating noise into a pattern.
+34. **The medication reminder arrives in M7, not M9.** It is inseparable from notifications, and asking for permission the moment someone switches on a reminder is exactly the "in context, with a reason" the spec wants for onboarding. Milestone 9's session-end backstop reuses whatever was granted here. The toggle only stays on if the reminder is genuinely armed — if permission is refused it flips back off and says why.
+35. **The medication observation is the one to look hardest at.** It reports completion on days with a log against days without, as bare arithmetic, with the caveat inline: a day without a log isn't necessarily a day without it, plenty else changes, and "talk to whoever prescribes it before changing anything". A test fails if the sentence ever says *because*, *helps*, *works*, *should*, or similar. If you'd rather not show it at all, it's one card to delete — nothing else depends on it.
+36. **Reflections are marked health-adjacent too.** The spec only names mood, energy and medication. But "what was hard today" and a line of gratitude are journaling, and the conservative default for journaling is the same one.
+37. **Sessions closed after their heartbeat are left out of every chart.** Nobody confirmed what happened in them, and counting them as failures would skew the chart toward whenever someone tends to leave the app running.
+
 ---
 
 ## Testing
@@ -218,6 +238,10 @@ All reversible, all worth your veto.
 - **Estimate calibration** — silence below ten samples, median resisting a 40x outlier, padding clamped at 0.5–3x, per-task deltas
 - **Noise generation** — every bed stays inside full scale and finite, brown reads smoother than pink once normalised by RMS, a zero seed does not lock the generator at silence, filters reset without clicking
 - **Body doubling** — milestones fire once each and do not stack when several bands are skipped at once, soundscapes appear only when both owned and playable, companion state through start, finish and reset
+- **Insights** — block boundaries including the one that wraps midnight, which sessions count, the two-week gate, focus quality drawn only from post-session check-ins, a real difference vs a wobble vs nothing to compare, the calendar's states, today never drawn as a miss
+- **Medication** — the observation stays silent below a week each side, only taken and undeleted logs count, the sentence never offers a reason or advice, the lock-screen text never mentions medication, a refused permission leaves the toggle honestly off
+- **Check-ins** — a skipped check-in writes no row, changing an answer updates in place, clearing removes it, keep-going does not carry the old energy reading forward
+- **Data sensitivity** — the health-adjacent list is pinned
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks
 

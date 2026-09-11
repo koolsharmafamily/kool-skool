@@ -43,6 +43,20 @@ struct AppSettings: SyncableRecord, Codable {
     /// Whether the companion appears on the session screen.
     var companionEnabled: Bool = true
 
+    // MARK: Check-ins and medication
+
+    /// Energy and mood before a session. Off by default: the setup screen is
+    /// where people bounce, and the spec is explicit about not adding steps to it.
+    var preSessionCheckIn: Bool = false
+    /// One tap after a session. On by default — the completion screen is already
+    /// a pause, a single tap is cheap, and it is what the energy curve is built on.
+    var postSessionCheckIn: Bool = true
+    /// Nothing about medication appears anywhere in the app until this is on.
+    var medicationTrackingEnabled: Bool = false
+    var medicationReminderEnabled: Bool = false
+    /// Minutes after local midnight. 480 is 8:00.
+    var medicationReminderMinutes: Int = 480
+
     // MARK: Accessibility
 
     /// Forces reduced motion even when the system setting is off. The system

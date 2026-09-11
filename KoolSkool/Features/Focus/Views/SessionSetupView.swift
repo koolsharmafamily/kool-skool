@@ -15,6 +15,8 @@ struct SessionSetupView: View {
     @State private var intent: String = ""
     @State private var commitment: String = ""
     @State private var resistance: Rating?
+    @State private var energy: Rating?
+    @State private var mood: Rating?
     @FocusState private var intentFocused: Bool
 
     init(
@@ -51,6 +53,13 @@ struct SessionSetupView: View {
                 }
 
                 resistanceSection
+
+                // Off by default. When on it is one compact block, never a
+                // separate step, and blank is a perfectly good answer.
+                if settings.preSessionCheckIn {
+                    checkInSection
+                }
+
                 Spacer(minLength: 0)
                 KSPrimaryButton(title: startTitle, systemImage: "play.fill") {
                     onStart(plan)
@@ -166,6 +175,13 @@ struct SessionSetupView: View {
         }
     }
 
+    private var checkInSection: some View {
+        VStack(alignment: .leading, spacing: KSSpacing.xs) {
+            KSRatingRow(title: "Energy", selection: $energy, isCompact: true)
+            KSRatingRow(title: "Mood", selection: $mood, isCompact: true)
+        }
+    }
+
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
             .ksFont(KSFont.label)
@@ -181,7 +197,9 @@ struct SessionSetupView: View {
             intent: intent,
             resistance: resistance,
             taskID: preselectedTask?.id,
-            commitment: commitment
+            commitment: commitment,
+            energy: settings.preSessionCheckIn ? energy : nil,
+            mood: settings.preSessionCheckIn ? mood : nil
         )
     }
 

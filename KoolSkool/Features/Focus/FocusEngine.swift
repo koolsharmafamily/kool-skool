@@ -49,6 +49,9 @@ final class FocusEngine {
     private(set) var linkedTask: FocusTask?
     /// What the session that just finished earned. Drives the celebration.
     private(set) var lastAward: AwardOutcome?
+    /// Whether the one-tap "how did that go?" has been answered for the
+    /// session on the completion screen, so the question disappears once asked.
+    private(set) var postCheckInRecorded = false
     private(set) var lastError: String?
 
     /// Written through `apply(settings:)` rather than directly. Property
@@ -67,6 +70,7 @@ final class FocusEngine {
     /// How many time-check pulses this session has already fired. Counted
     /// rather than timed, so they cannot drift.
     @ObservationIgnored private var timeChecksFired = 0
+    @ObservationIgnored private var postCheckInID: UUID?
     /// Tests drive `tick()` by hand against a fake clock. Leaving the real
     /// one-second loop running alongside would make them non-deterministic.
     @ObservationIgnored private let ticksAutomatically: Bool
@@ -149,8 +153,11 @@ final class FocusEngine {
             self.session = saved
             status = .running
             finishedSession = nil
+            postCheckInRecorded = false
+            postCheckInID = nil
             lastError = nil
             await loadLinkedTask(id: saved.taskID)
+            await savePreCheckIn(from: plan, sessionID: saved.id, at: now)
 
             haptics.fire(.start)
             await beginRunning(saved)
@@ -174,6 +181,9 @@ final class FocusEngine {
     func continueSession(as mode: SessionMode) async {
         guard let finished = finishedSession else { return }
 
+        // Carries the intent and task across but not the check-in: energy five
+        // minutes ago is not energy now, and asking again would be a step too
+        // many for a one-tap "keep going".
         let plan = SessionPlan(
             mode: mode,
             plannedDuration: settings.resolvedProfile(for: mode).workDuration,
@@ -215,6 +225,55 @@ final class FocusEngine {
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// "How did that go?" — one tap on the completion screen.
+    ///
+    /// Changing the answer updates the same row rather than adding a second
+    /// one, and clearing it removes it. Nobody should have to live with a
+    /// mis-tap in their own history.
+    func recordPostCheckIn(quality: Rating?) async {
+        guard let finished = finishedSession else { return }
+
+        do {
+            guard let quality else {
+                if let existing = postCheckInID {
+                    try await repositories.checkIns.softDelete(checkInID: existing)
+                }
+                postCheckInID = nil
+                postCheckInRecorded = false
+                return
+            }
+
+            var checkIn = CheckIn()
+            if let existing = postCheckInID { checkIn.id = existing }
+            checkIn.timestamp = clock.now
+            checkIn.phase = .post
+            checkIn.focusQuality = quality
+            checkIn.sessionID = finished.id
+
+            let saved = try await repositories.checkIns.upsert(checkIn)
+            postCheckInID = saved.id
+            postCheckInRecorded = true
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Writes nothing at all when the check-in was skipped. An empty row would
+    /// be indistinguishable from a real "I don't know" and would skew Insights.
+    private func savePreCheckIn(from plan: SessionPlan, sessionID: UUID, at date: Date) async {
+        guard plan.hasCheckIn else { return }
+
+        var checkIn = CheckIn()
+        checkIn.timestamp = date
+        checkIn.phase = .pre
+        checkIn.energy = plan.energy
+        checkIn.mood = plan.mood
+        checkIn.sessionID = sessionID
+
+        // A failed check-in must never cost the session it belongs to.
+        _ = try? await repositories.checkIns.upsert(checkIn)
     }
 
     private func loadLinkedTask(id: UUID?) async {

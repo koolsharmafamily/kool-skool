@@ -92,6 +92,7 @@ final class SDCheckIn {
     var moodRaw: Int?
     var phaseRaw: String = CheckInPhase.pre.rawValue
     var sessionID: UUID?
+    var focusQualityRaw: Int?
 
     var phase: CheckInPhase {
         get { CheckInPhase(rawValue: phaseRaw) ?? .pre }
@@ -107,7 +108,8 @@ final class SDCheckIn {
         energyRaw: Int? = nil,
         moodRaw: Int? = nil,
         phaseRaw: String = CheckInPhase.pre.rawValue,
-        sessionID: UUID? = nil
+        sessionID: UUID? = nil,
+        focusQualityRaw: Int? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -118,6 +120,7 @@ final class SDCheckIn {
         self.moodRaw = moodRaw
         self.phaseRaw = phaseRaw
         self.sessionID = sessionID
+        self.focusQualityRaw = focusQualityRaw
     }
 }
 
@@ -230,7 +233,8 @@ extension SDCheckIn {
             energy: energyRaw.map { Rating(clamping: $0) },
             mood: moodRaw.map { Rating(clamping: $0) },
             phase: phase,
-            sessionID: sessionID
+            sessionID: sessionID,
+            focusQuality: focusQualityRaw.map { Rating(clamping: $0) }
         )
     }
 
@@ -240,6 +244,7 @@ extension SDCheckIn {
         moodRaw = dto.mood?.rawValue
         phaseRaw = dto.phase.rawValue
         sessionID = dto.sessionID
+        focusQualityRaw = dto.focusQuality?.rawValue
         deletedAt = dto.deletedAt
     }
 
@@ -253,7 +258,8 @@ extension SDCheckIn {
             energyRaw: dto.energy?.rawValue,
             moodRaw: dto.mood?.rawValue,
             phaseRaw: dto.phase.rawValue,
-            sessionID: dto.sessionID
+            sessionID: dto.sessionID,
+            focusQualityRaw: dto.focusQuality?.rawValue
         )
     }
 }

@@ -20,6 +20,8 @@ struct TimeSettingsSheet: View {
                         timeCheckSection
                         calibrationSection
                         companySection
+                        checkInSection
+                        medicationSection
                     }
                     .padding(.vertical, KSSpacing.lg)
                 }
@@ -162,6 +164,58 @@ struct TimeSettingsSheet: View {
                 Text("Soundscapes keep playing when the screen locks, which means they do not follow the silent switch. Turn them off here or from the session screen.")
                     .ksFont(KSFont.caption)
                     .foregroundStyle(KSColor.textSecondary)
+            }
+        }
+    }
+
+    private var checkInSection: some View {
+        KSCard {
+            VStack(alignment: .leading, spacing: KSSpacing.sm) {
+                Text("Check-ins")
+                    .ksFont(KSFont.headline)
+                    .foregroundStyle(KSColor.textPrimary)
+
+                Toggle(isOn: binding(\.postSessionCheckIn)) {
+                    Text("\"How did that go?\" after a session")
+                        .ksFont(KSFont.body)
+                        .foregroundStyle(KSColor.textPrimary)
+                }
+
+                Toggle(isOn: binding(\.preSessionCheckIn)) {
+                    Text("Energy and mood before a session")
+                        .ksFont(KSFont.body)
+                        .foregroundStyle(KSColor.textPrimary)
+                }
+
+                Text("Always skippable and never asked twice. The one after a session is what the Insights chart of how sessions felt is built on.")
+                    .ksFont(KSFont.caption)
+                    .foregroundStyle(KSColor.textSecondary)
+            }
+        }
+    }
+
+    private var medicationSection: some View {
+        KSCard {
+            VStack(alignment: .leading, spacing: KSSpacing.sm) {
+                Text("Medication")
+                    .ksFont(KSFont.headline)
+                    .foregroundStyle(KSColor.textPrimary)
+
+                Toggle(isOn: binding(\.medicationTrackingEnabled)) {
+                    Text("Keep a medication log")
+                        .ksFont(KSFont.body)
+                        .foregroundStyle(KSColor.textPrimary)
+                }
+
+                Text("Adds a one-tap line to Today and a daily reminder you can switch on. Stays on this device and is never sent anywhere.")
+                    .ksFont(KSFont.caption)
+                    .foregroundStyle(KSColor.textSecondary)
+
+                // The plain note the spec asks for, where medication tracking is
+                // switched on rather than in a legal page nobody opens.
+                Text("Kool Skool is not a medical device and does not give medical advice.")
+                    .ksFont(KSFont.label)
+                    .foregroundStyle(KSColor.textPrimary)
             }
         }
     }

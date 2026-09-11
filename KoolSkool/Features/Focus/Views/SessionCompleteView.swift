@@ -12,6 +12,9 @@ struct SessionCompleteView: View {
     let session: FocusSession
     var linkedTask: FocusTask?
     var award: AwardOutcome?
+    /// Nil hides the question entirely, which is what switching post-session
+    /// check-ins off does. Passing nil through clears a previous answer.
+    var onCheckIn: ((Rating?) -> Void)?
     let offersExtension: Bool
     let extensionMode: SessionMode
     let onContinue: (SessionMode) -> Void
@@ -19,6 +22,7 @@ struct SessionCompleteView: View {
     let onDone: () -> Void
 
     @State private var hasCelebrated = false
+    @State private var quality: Rating?
 
     private var minutes: Int { session.actualMinutes }
     private var plannedMinutes: Int { Int(session.plannedDuration / 60) }
@@ -43,6 +47,7 @@ struct SessionCompleteView: View {
                     intentCard
                 }
                 if let task = linkedTask { taskCard(task) }
+                if let onCheckIn { checkInCard(onCheckIn) }
 
                 Spacer(minLength: KSSpacing.md)
                 actions
@@ -123,6 +128,24 @@ struct SessionCompleteView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// One tap, never required. Leaving without answering is a complete answer.
+    private func checkInCard(_ record: @escaping (Rating?) -> Void) -> some View {
+        KSCard {
+            KSRatingRow(
+                title: "How did that go?",
+                selection: Binding(
+                    get: { quality },
+                    set: { newValue in
+                        quality = newValue
+                        record(newValue)
+                    }
+                ),
+                lowLabel: "Rough",
+                highLabel: "Went well"
+            )
         }
     }
 
