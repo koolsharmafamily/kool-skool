@@ -31,6 +31,9 @@ final class SoundscapeEngine {
 
     private var interruptionToken: (any NSObjectProtocol)?
     private var wasPlayingBeforeInterruption = false
+    /// Interval bells ring the same note over and over, so the buffer is built
+    /// once per frequency rather than once per ring.
+    private var cachedBell: (frequency: Double, buffer: AVAudioPCMBuffer)?
 
     private(set) var current: Soundscape?
     private(set) var isPlaying = false
@@ -98,7 +101,32 @@ final class SoundscapeEngine {
     /// Built as a buffer rather than a bundled file so it needs no asset, and
     /// scheduled on its own player so it can land over a running bed.
     func playChime() {
-        guard let buffer = Self.makeChimeBuffer(format: format) else { return }
+        play(buffer: Self.makeStrikeBuffer(format: format, fundamental: 880, overtone: 1320, duration: 0.9, decay: 4.2))
+    }
+
+    /// The stillness bell: lower, longer, and with an inharmonic partial, which
+    /// is most of what separates a struck bowl from a beep.
+    ///
+    /// Same engine, same session, same player as everything else — the spec is
+    /// explicit that the stillness layer does not get a second audio stack.
+    /// Cached because interval bells ring the same note repeatedly.
+    func playBell(frequency: Double) {
+        if cachedBell?.frequency != frequency {
+            cachedBell = Self.makeStrikeBuffer(
+                format: format,
+                fundamental: frequency,
+                overtone: frequency * 2.74,
+                duration: 3.6,
+                decay: 0.95
+            )
+            .map { (frequency: frequency, buffer: $0) }
+        }
+
+        play(buffer: cachedBell?.buffer)
+    }
+
+    private func play(buffer: AVAudioPCMBuffer?) {
+        guard let buffer else { return }
 
         do {
             try activateSession()
@@ -234,12 +262,20 @@ final class SoundscapeEngine {
         audioFile = nil
     }
 
-    // MARK: Chime
+    // MARK: Struck tones
 
-    /// Two overlapping partials with a quick attack and a long decay. About as
-    /// close to a bell as arithmetic gets.
-    private static func makeChimeBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
-        let duration: Double = 0.9
+    /// Two overlapping partials with a quick attack and an exponential decay.
+    /// About as close to something struck as arithmetic gets.
+    ///
+    /// A higher `decay` fades faster: the completion chime is gone in under a
+    /// second, the stillness bell rings for several.
+    private static func makeStrikeBuffer(
+        format: AVAudioFormat,
+        fundamental: Double,
+        overtone: Double,
+        duration: Double,
+        decay: Double
+    ) -> AVAudioPCMBuffer? {
         let sampleRate = format.sampleRate
         let frames = AVAudioFrameCount(sampleRate * duration)
 
@@ -251,14 +287,10 @@ final class SoundscapeEngine {
 
         buffer.frameLength = frames
 
-        let fundamental: Double = 880
-        let overtone: Double = 1320
-
         for frame in 0..<Int(frames) {
             let t = Double(frame) / sampleRate
             let attack = min(1, t / 0.006)
-            let decay = exp(-t * 4.2)
-            let envelope = Float(attack * decay)
+            let envelope = Float(attack * exp(-t * decay))
 
             let value = Float(
                 sin(2 * .pi * fundamental * t) * 0.6

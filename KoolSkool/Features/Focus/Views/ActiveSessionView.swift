@@ -11,6 +11,10 @@ import SwiftUI
 struct ActiveSessionView: View {
     let snapshot: SessionSnapshot
     var taskTitle: String?
+    /// The morning intention, shown back during the session — but only when the
+    /// session has no intent of its own. Three lines of text above the disc is
+    /// three lines of text nobody reads.
+    var intention: String?
     var showsDigits: Bool = true
     var showsCompanion: Bool = true
     var bodyDoubling: BodyDoublingController?
@@ -69,6 +73,11 @@ struct ActiveSessionView: View {
                 Text(snapshot.session.intent)
                     .ksFont(KSFont.body)
                     .foregroundStyle(KSColor.textSecondary)
+                    .multilineTextAlignment(.center)
+            } else if let intention, !intention.isEmpty {
+                Text(intention)
+                    .ksFont(KSFont.body)
+                    .foregroundStyle(KSColor.textTertiary)
                     .multilineTextAlignment(.center)
             }
         }

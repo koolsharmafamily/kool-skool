@@ -19,6 +19,12 @@ final class AppEnvironment {
     /// Owned here rather than by a screen, because the Today row and the full
     /// log have to agree about whether today is logged.
     let medication: MedicationModel
+    /// Long-lived for the same reason the focus engine is: a sit has to keep
+    /// running while the view hierarchy churns around it.
+    let stillness: StillnessModel
+    /// Owned here because Today shows the morning line and the reflection
+    /// screen edits it, and they have to agree.
+    let reflection: ReflectionModel
 
     /// Cached copies of the two singleton rows, so screens can read them
     /// synchronously. Writes go through this object and refresh the cache.
@@ -42,6 +48,7 @@ final class AppEnvironment {
         idleGuard: any ScreenIdleGuarding = ScreenIdleGuard(),
         rolls: @escaping @Sendable () -> RewardRolls = { RewardRolls.random() },
         reminders: any MedicationReminderScheduling = LocalMedicationReminderScheduler(),
+        practices: any PracticeProvider = BundledPracticeProvider(),
         storeWarning: String? = nil
     ) {
         self.repositories = repositories
@@ -55,6 +62,15 @@ final class AppEnvironment {
 
         let bodyDoubling = BodyDoublingController(repositories: repositories)
         self.bodyDoubling = bodyDoubling
+
+        stillness = StillnessModel(
+            repositories: repositories,
+            clock: clock,
+            haptics: haptics,
+            provider: practices,
+            bodyDoubling: bodyDoubling
+        )
+        reflection = ReflectionModel(repositories: repositories, clock: clock)
 
         focusEngine = FocusEngine(
             repositories: repositories,
@@ -74,9 +90,14 @@ final class AppEnvironment {
             haptics.isEnabled = settings.hapticsEnabled
             haptics.prepare()
             focusEngine.apply(settings: settings)
+            stillness.apply(settings: settings)
 
             try await rewards.prepareCatalogue()
             await bodyDoubling.refreshCatalogue()
+            // Seeds the bundled practices and recomputes the calm streak, which
+            // like the focus streak is derived rather than stored.
+            await stillness.load()
+            await reflection.load()
             // Recomputed at launch so a streak that survived on freezes, or one
             // that quietly lapsed, is right before the Today screen draws it.
             progress = try await rewards.refreshStreak()
@@ -127,6 +148,7 @@ final class AppEnvironment {
             settings = try await repositories.settings.update(draft)
             haptics.isEnabled = settings.hapticsEnabled
             focusEngine.apply(settings: settings)
+            stillness.apply(settings: settings)
 
             // Switching tracking off has to take the reminder with it. Hiding
             // the UI while a notification keeps arriving every morning would be

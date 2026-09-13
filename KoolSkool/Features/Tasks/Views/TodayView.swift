@@ -18,6 +18,11 @@ struct TodayView: View {
     /// medication renders otherwise.
     var medication: MedicationModel?
     var onOpenMedication: () -> Void = {}
+    /// The morning line, if one has been set. Empty renders the invitation.
+    var intention: String = ""
+    var calmStreak: Int = 0
+    var onOpenReflection: () -> Void = {}
+    var onOpenStillness: () -> Void = {}
 
     @State private var isPresentingBrainDump = false
     @State private var isPresentingPicker = false
@@ -37,6 +42,11 @@ struct TodayView: View {
                     mustList
                     startSection
                     secondaryRow
+
+                    // Everything below the fold is optional and quiet. The three
+                    // musts and the start button are still the screen.
+                    IntentionRow(intention: intention, onOpen: onOpenReflection)
+                    StillnessRow(calmStreak: calmStreak, onOpen: onOpenStillness)
 
                     if let medication {
                         MedicationRow(model: medication, onOpen: onOpenMedication)

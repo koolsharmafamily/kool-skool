@@ -11,6 +11,8 @@ struct TimeSettingsSheet: View {
     let onChange: (@escaping (inout AppSettings) -> Void) -> Void
     let onClose: () -> Void
 
+    @State private var isPickingTradition = false
+
     var body: some View {
         NavigationStack {
             KSScreen(state: .ready) {
@@ -21,6 +23,7 @@ struct TimeSettingsSheet: View {
                         calibrationSection
                         companySection
                         checkInSection
+                        stillnessSection
                         medicationSection
                     }
                     .padding(.vertical, KSSpacing.lg)
@@ -33,6 +36,16 @@ struct TimeSettingsSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", action: onClose)
                 }
+            }
+            .sheet(isPresented: $isPickingTradition) {
+                TraditionPickerSheet(
+                    selected: settings.tradition,
+                    onSelect: { tradition in
+                        onChange { $0.tradition = tradition }
+                        isPickingTradition = false
+                    },
+                    onClose: { isPickingTradition = false }
+                )
             }
         }
     }
@@ -188,6 +201,55 @@ struct TimeSettingsSheet: View {
                 }
 
                 Text("Always skippable and never asked twice. The one after a session is what the Insights chart of how sessions felt is built on.")
+                    .ksFont(KSFont.caption)
+                    .foregroundStyle(KSColor.textSecondary)
+            }
+        }
+    }
+
+    private var stillnessSection: some View {
+        KSCard {
+            VStack(alignment: .leading, spacing: KSSpacing.sm) {
+                Text("Stillness")
+                    .ksFont(KSFont.headline)
+                    .foregroundStyle(KSColor.textPrimary)
+
+                Button {
+                    isPickingTradition = true
+                } label: {
+                    HStack {
+                        Text("Framing")
+                            .ksFont(KSFont.body)
+                            .foregroundStyle(KSColor.textPrimary)
+                        Spacer()
+                        Text(settings.tradition.displayName)
+                            .ksFont(KSFont.body)
+                            .foregroundStyle(KSColor.textSecondary)
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(KSColor.textTertiary)
+                    }
+                    .frame(minHeight: KSSize.minimumTapTarget)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Toggle(isOn: binding(\.offerBreakPractice)) {
+                    Text("Offer a practice on breaks")
+                        .ksFont(KSFont.body)
+                        .foregroundStyle(KSColor.textPrimary)
+                }
+
+                Text("After a session, one practice that fits the break. Always skippable in a tap.")
+                    .ksFont(KSFont.caption)
+                    .foregroundStyle(KSColor.textSecondary)
+
+                Toggle(isOn: binding(\.intervalBellsEnabled)) {
+                    Text("Interval bells")
+                        .ksFont(KSFont.body)
+                        .foregroundStyle(KSColor.textPrimary)
+                }
+
+                Text("A bell each minute during sits of five minutes or more. Sound Anchor rings either way — the bell is the practice.")
                     .ksFont(KSFont.caption)
                     .foregroundStyle(KSColor.textSecondary)
             }

@@ -12,11 +12,19 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 7 complete — check-ins, the medication log, and Insights with Swift Charts.**
+**Milestone 8 complete — the stillness layer: breath pacer, practice library, breaks, framings, reflection, calm streak.**
 
-The full loop runs: dump what's in your head, pin up to three for today, break one into steps, say out loud what you're about to do, start a session with something working alongside you and a noise bed running, watch a disc drain while the background warms toward the deadline, get paid for it, and watch a streak build that forgives two missed days a month without being asked.
+The full loop runs: dump what's in your head, pin up to three for today, break one into steps, say out loud what you're about to do, start a session with something working alongside you and a noise bed running, watch a disc drain while the background warms toward the deadline, get paid for it, take a breath practice on the break, and watch a streak build that forgives two missed days a month without being asked.
 
-Remaining milestones, in order: stillness → Live Activities and widgets → onboarding and settings → accessibility pass.
+Remaining milestones, in order: Live Activities and widgets → onboarding and settings → accessibility pass.
+
+### Content in the stillness layer
+
+**No line in the app is attributed to anybody, because nothing in it came from anybody.** Every practice script, every framing, and every closing line is written for this app and presented as the app's own words. `Practice.attribution` is nil across the whole bundled catalogue; it renders next to the passage wherever it is set, so verbatim public-domain or licensed text drops in later without touching a view. Three tests hold the line: attributions are nil, no script contains quotation marks or attributive verbs, and no framing does either.
+
+**There is no recorded audio.** The spec asks for bundled local audio and text scripts. The scripts are here and `audioAssetName` is wired through, but nothing is bundled: no recording exists, and synthesising a voice is off the table under the same rule. So guidance is text cues paced by the timer, plus a synthesised bell whose pitch changes with the framing. Real recordings are a sourcing problem before an engineering one — when they arrive, they set `audioAssetName` and the practice screen already knows what to do with it.
+
+**The tradition selector changes vocabulary, the closing line, and the bell.** It never changes what a practice asks you to do, and the app is complete on the secular default. Each framing's picker line describes what changes *in the app*, not what the tradition teaches — the app is in no position to do the second.
 
 ### The audio tradeoff you should know about
 
@@ -57,6 +65,7 @@ KoolSkool/
 │   ├── TimeBlindness/  The disc, the ambient shift, estimate calibration
 │   ├── CheckIns/   Check-ins, the medication log and its reminder
 │   ├── Insights/   The calendar, the time-of-day chart, every observation sentence
+│   ├── Stillness/  The breath pacer, the practice library, breaks, reflection
 │   └── BodyDoubling/   The companion, the audio stack, the commitment card
 ├── Domain/         Pure Sendable value types. No SwiftData, no SwiftUI.
 │   ├── Core/       Clock, sync metadata, session modes, shared enums
@@ -146,7 +155,7 @@ The base XP and coins **always land**. The chest can only ever add — and if a 
 
 ## Deviations from the spec
 
-Four renames and one addition, all noted here so they are not a surprise:
+Four renames and some additions, all noted here so they are not a surprise:
 
 | Spec | Built as | Why |
 |---|---|---|
@@ -157,6 +166,7 @@ Four renames and one addition, all noted here so they are not a surprise:
 | — | `Practice.attribution` | Carries the source for any verbatim public-domain text, per the hard content rule. |
 | — | `FocusSession.lastHeartbeatAt` | Added in M2. Bounds a Flowmodoro session the app stopped watching. |
 | — | `FocusSession.endReason` | Added in M2. "How do my sessions actually end" is what Insights will want. |
+| Bundled practice audio | Text cues paced by the timer | Added in M8. Nothing can be recorded here and a synthesised voice is forbidden by the same rule that forbids attributed guidance. `audioAssetName` is wired and unused. |
 
 ### Judgement calls
 
@@ -217,6 +227,24 @@ All reversible, all worth your veto.
 36. **Reflections are marked health-adjacent too.** The spec only names mood, energy and medication. But "what was hard today" and a line of gratitude are journaling, and the conservative default for journaling is the same one.
 37. **Sessions closed after their heartbeat are left out of every chart.** Nobody confirmed what happened in them, and counting them as failures would skew the chart toward whenever someone tends to leave the app running.
 
+**Stillness (M8)**
+
+38. **Nothing is attributed, because nothing came from anyone.** See the content section above. The attribution rendering path exists and is unused; adding a real quotation means finding verbatim source text and checking it, which is your call, not something to be written from memory.
+39. **No bundled audio, so guidance is text cues paced by the timer.** The alternative was a synthesised voice, which the rule forbids outright, or silence with a script nobody reads. Cues spread evenly across the chosen length and hold on the last one if the sit overruns.
+40. **A sit is written when it ends, not when it starts.** The opposite of a focus session, deliberately: the schema has no open-sit state, and losing a two-minute practice to a force quit costs far less than the machinery to recover one. A sit does survive backgrounding while the app lives, which covers walking meditation with the phone in a pocket.
+41. **A plain break timer is not a sit and records nothing.** "Just give me the five minutes" is a legitimate break. Counting it would inflate the calm streak with minutes nobody practised.
+42. **The calm streak reuses the focus streak's walk with a freeze budget of zero.** Same code, one parameter. It has no freezes because it has nothing to rescue — a day without a sit simply does not appear, and `applyingCalm` deliberately touches none of the freeze fields so it can never spend the focus streak's budget.
+43. **The pacer ticks ten times a second; everything else ticks once.** A phase boundary landing up to a second late is a pacer people stop trusting. Nothing accumulates across ticks, so the rate only affects how promptly a boundary is noticed.
+44. **The shape animates to where it is going, not to where it is.** On a phase change the view animates to the step's end fullness over the step's own duration. Following `fullness` frame by frame would stutter at whatever rate the model happens to tick.
+45. **Under Reduce Motion the shape does not move at all.** The instruction word, the count and a filling bar carry the pacing instead. Someone who asked the system for less motion should not be handed a pulsing circle as the centrepiece of a calming screen.
+46. **Box breathing gets a rounded square, the sigh gets a circle.** The shape names the practice, which is one less thing to explain.
+47. **No confirmation dialog when you end a sit.** The focus screen has one because abandoning work is costly. Leaving a two-minute breath practice is not, and "are you sure?" there would be its own small nag.
+48. **The sound anchor rings its bells whether or not interval bells are switched on.** The bell *is* that practice; silencing it leaves nothing to do. Every other long sit respects the setting.
+49. **The break offer is a screen after the completion screen, not a button on it.** The completion screen already has a job. The suggested practice is pre-chosen so taking a break is one decision rather than a menu, and swapping it is a row of chips that stays out of the way.
+50. **Open awareness is shown locked rather than hidden.** A library that hides most of itself reads as a short library instead of a growing one. The row says exactly what it needs: "After 20 more sits".
+51. **The morning intention appears during a session only when the session has no intent of its own.** Both are one line of text above the disc, and three lines up there is three lines nobody reads.
+52. **The framing changes the bell's pitch.** That is the spec's "ambient sound palette", done with the synthesiser that already exists rather than with audio files that do not.
+
 ---
 
 ## Testing
@@ -241,6 +269,13 @@ All reversible, all worth your veto.
 - **Insights** — block boundaries including the one that wraps midnight, which sessions count, the two-week gate, focus quality drawn only from post-session check-ins, a real difference vs a wobble vs nothing to compare, the calendar's states, today never drawn as a miss
 - **Medication** — the observation stays silent below a week each side, only taken and undeleted logs count, the sentence never offers a reason or advice, the lock-screen text never mentions medication, a refused permission leaves the toggle honestly off
 - **Check-ins** — a skipped check-in writes no row, changing an answer updates in place, clearing removes it, keep-going does not carry the old energy reading forward
+- **Breath pacer** — every second of a box cycle lands in the right phase, fullness rises evenly and holds through a hold, the exhale of the sigh outlasts both inhales, twenty minutes of elapsed time changes nothing because nothing accumulates, one haptic per boundary and never two
+- **Practice content** — every attribution is nil, no script or framing contains quotation marks or an attributive verb, every framing says a wandering mind is the practice, ids are stable so reseeding cannot duplicate the catalogue
+- **Sits** — starting writes nothing, running to the end records a completed sit, the eighty-percent rule, a mis-tap leaves no litter, a plain break timer records nothing, the framing is recorded on the sit rather than looked up later
+- **Calm streak** — consecutive days build it, a gap is *not* bridged by a freeze, today is never held against you, the longest survives a lapse, it never spends the focus streak's freeze budget
+- **Breaks** — the offer respects its setting, Just Start has no break so offers none, the suggestion always fits inside the break, a longer break gets a longer practice, a locked practice is never suggested
+- **Interval bells** — off unless asked for, spaced by elapsed time so they cannot drift, the sound anchor rings either way, short sits stay quiet
+- **Reflection** — the morning line and the evening close land in one row, writing the evening does not wipe the morning, saying nothing writes nothing, a new day starts blank
 - **Data sensitivity** — the health-adjacent list is pinned
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks
@@ -255,6 +290,9 @@ Written as protocols now, implemented later, so nothing has to be retrofitted:
 - A real Settings screen — Milestone 10. `TimeSettingsSheet` carries the Milestone 5 switches in the meantime, because a feature nobody can reach is a feature nobody can judge; it folds into Settings when that lands.
 - Real multiplayer co-working rooms — out of scope for v1, they need a backend. `BodyDoublingProvider` is the seam: `LocalCompanionProvider` returns one synthetic coworker, a `RemoteRoomProvider` would return several real ones, and the session screen already renders a list rather than a single figure.
 - Recorded soundscapes — Café and Library expect `soundscape-cafe.m4a` and `soundscape-library.m4a` in the bundle and light up on their own once those exist.
+- `PracticeProvider` — `BundledPracticeProvider` reads a constant today. A `RemotePracticeProvider` serving a larger library replaces it and nothing else: views and view models talk to the repository, which is seeded from the provider.
+- Recorded practice guidance — `Practice.audioAssetName` is wired through to the practice screen and set on nothing. `attribution` renders wherever it is set and is set on nothing. Between them, a licensed course recorded by a consenting named teacher drops in as data.
+- Multi-week programs — `Practice.programID` and `orderInProgram` are in the schema and unused, so "21 days of morning stillness" is not a migration.
 - AI-assisted task breakdown — not in v1 and not stubbed. The offline template row in the step editor is the shape it would slot into if it ever ships.
 - XP, coins, streaks, the celebration moment, and the post-session energy check-in — Milestones 4 and 7. The completion screen leaves that space empty rather than filling it with a placeholder.
 

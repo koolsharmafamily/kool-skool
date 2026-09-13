@@ -41,11 +41,15 @@ enum StreakCalculator {
     ///   - today: now.
     ///   - previousLongest: the stored record, so a longest streak is never
     ///     lost even if history is trimmed.
+    ///   - freezeBudget: freezes available per calendar month. The calm streak
+    ///     passes zero: it has no freezes because it has no failure state to
+    ///     rescue — a day without a sit simply does not appear.
     static func evaluate(
         completedDays: [Date],
         today: Date,
         previousLongest: Int,
-        clock: some DateProvider
+        clock: some DateProvider,
+        freezeBudget: Int = UserProgress.freezesPerMonth
     ) -> StreakOutcome {
         let active = Set(completedDays.map { clock.startOfDay(for: $0) })
 
@@ -53,7 +57,7 @@ enum StreakCalculator {
             return StreakOutcome(
                 current: 0,
                 longest: previousLongest,
-                freezesRemaining: UserProgress.freezesPerMonth,
+                freezesRemaining: freezeBudget,
                 freezesUsedThisMonth: 0,
                 frozenDays: [],
                 lastActiveDay: nil
@@ -96,9 +100,10 @@ enum StreakCalculator {
                 continue
             }
 
+            guard freezeBudget > 0 else { break }
             guard let month = monthStart(of: cursor, clock: clock) else { break }
             let used = usageByMonth[month, default: 0]
-            guard used < UserProgress.freezesPerMonth else { break }
+            guard used < freezeBudget else { break }
 
             usageByMonth[month] = used + 1
             provisionalFreezes.append(cursor)
@@ -120,7 +125,7 @@ enum StreakCalculator {
         return StreakOutcome(
             current: current,
             longest: max(previousLongest, current),
-            freezesRemaining: max(0, UserProgress.freezesPerMonth - usedThisMonth),
+            freezesRemaining: max(0, freezeBudget - usedThisMonth),
             freezesUsedThisMonth: usedThisMonth,
             frozenDays: frozenDays.sorted(by: >),
             lastActiveDay: active.max()
@@ -146,6 +151,18 @@ extension UserProgress {
         updated.freezesRemaining = outcome.freezesRemaining
         updated.freezesUsedThisMonth = outcome.freezesUsedThisMonth
         updated.lastSessionDay = outcome.lastActiveDay
+        return updated
+    }
+
+    /// Folds a freshly computed calm streak into the progress row.
+    ///
+    /// Deliberately touches none of the freeze fields: the calm streak has no
+    /// freezes, and borrowing the focus streak's budget would quietly spend it.
+    func applyingCalm(_ outcome: StreakOutcome) -> UserProgress {
+        var updated = self
+        updated.calmStreak = outcome.current
+        updated.longestCalmStreak = max(longestCalmStreak, outcome.current)
+        updated.lastSitDay = outcome.lastActiveDay
         return updated
     }
 

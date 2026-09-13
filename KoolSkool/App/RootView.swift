@@ -15,10 +15,14 @@ struct RootView: View {
     @State private var isPresentingTimeSettings = false
 
     private var engine: FocusEngine { app.focusEngine }
+    private var stillness: StillnessModel { app.stillness }
 
     var body: some View {
         content
             .ksAnimation(KSAnimation.gentle, value: engine.status)
+            // Slower on the way into stillness than anywhere else in the app.
+            // The contrast between the two layers is meant to be felt.
+            .ksAnimation(KSAnimation.calm, value: stillness.isRunning)
             .sheet(item: $setupTask) { request in
                 setupSheet(for: request)
             }
@@ -28,20 +32,68 @@ struct RootView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 Task { await engine.scenePhaseChanged(to: phase) }
+                Task { await stillness.scenePhaseChanged(to: phase) }
             }
             .onChange(of: engine.status) { _, status in
                 // Coming back from a session, Today may be stale — a task could
                 // have been marked done on the completion screen.
                 if status == .idle { Task { await refreshAll() } }
             }
+            .onChange(of: stillness.isRunning) { _, isRunning in
+                // A finished sit moves the calm streak, which Today shows.
+                if !isRunning { Task { await app.refreshProgress() } }
+            }
+    }
+
+    /// The stillness layer sits in front of everything when it is active: a sit
+    /// is a whole-screen thing, and a break offer is the next decision after a
+    /// session whether or not the rest of the app has anything to say.
+    @ViewBuilder
+    private var content: some View {
+        if let run = stillness.run {
+            SitView(
+                run: run,
+                now: stillness.now,
+                breathTick: stillness.breathTick,
+                cue: stillness.currentCue,
+                tradition: app.settings.tradition,
+                onEnd: { Task { await stillness.end(reachedEnd: false) } }
+            )
+            .ksTransition(.opacity)
+        } else if let finished = stillness.lastFinished {
+            SitClosingView(
+                sit: finished,
+                practice: stillness.practices.first { $0.id == finished.practiceID },
+                calmStreak: stillness.calmStreak,
+                onDone: { stillness.dismissClosing() }
+            )
+            .ksTransition(.opacity)
+        } else if let offer = stillness.breakOffer {
+            BreakOfferView(
+                offer: offer,
+                entries: stillness.libraryEntries(level: app.progress.level),
+                tradition: app.settings.tradition,
+                onStart: { practice, duration in
+                    stillness.start(practice: practice, duration: duration, focusSessionID: offer.focusSessionID, isBreak: true)
+                },
+                onPlainTimer: { duration in
+                    stillness.startPlainBreak(duration: duration, focusSessionID: offer.focusSessionID)
+                },
+                onSkip: { stillness.dismissBreakOffer() }
+            )
+            .ksTransition(.opacity)
+        } else {
+            focusContent
+        }
     }
 
     @ViewBuilder
-    private var content: some View {
+    private var focusContent: some View {
         if engine.status == .running, let snapshot = engine.snapshot {
             ActiveSessionView(
                 snapshot: snapshot,
                 taskTitle: engine.linkedTask?.startableLabel,
+                intention: app.reflection.morningIntention,
                 showsDigits: app.settings.showDigitalTimer,
                 showsCompanion: app.settings.companionEnabled,
                 bodyDoubling: app.bodyDoubling
@@ -61,7 +113,12 @@ struct RootView: View {
                 extensionMode: .classicPomodoro,
                 onContinue: { mode in Task { await engine.continueSession(as: mode) } },
                 onMarkTaskDone: { Task { await engine.markLinkedTaskComplete() } },
-                onDone: { engine.dismissCompletion() }
+                onDone: {
+                    // The break offer is the next screen, not a button on this
+                    // one — the completion screen already has a job.
+                    stillness.offerBreak(after: finished, settings: app.settings)
+                    engine.dismissCompletion()
+                }
             )
             .ksTransition(.opacity)
         } else {
@@ -86,7 +143,11 @@ struct RootView: View {
                         onOpenAllTasks: { path.append(.list) },
                         onOpenCollection: { path.append(.collection) },
                         medication: app.settings.medicationTrackingEnabled ? app.medication : nil,
-                        onOpenMedication: { path.append(.medication) }
+                        onOpenMedication: { path.append(.medication) },
+                        intention: app.reflection.morningIntention,
+                        calmStreak: app.progress.calmStreak,
+                        onOpenReflection: { path.append(.reflection) },
+                        onOpenStillness: { path.append(.stillness) }
                     )
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -180,6 +241,28 @@ struct RootView: View {
                 )
             }
 
+        case .stillness:
+            PracticeLibraryView(
+                entries: stillness.libraryEntries(level: app.progress.level),
+                tradition: app.settings.tradition,
+                calmStreak: stillness.calmStreak,
+                completedSits: stillness.completedSits,
+                onStart: { practice, duration in
+                    // The path is left alone. A sit replaces the whole screen
+                    // while it runs, and finishing one puts the library back
+                    // exactly where it was.
+                    stillness.start(practice: practice, duration: duration)
+                },
+                onOpenReflection: { path.append(.reflection) },
+                onChangeTradition: { tradition in
+                    Task { await app.updateSettings { $0.tradition = tradition } }
+                }
+            )
+            .task { await stillness.load() }
+
+        case .reflection:
+            ReflectionView(model: app.reflection, tradition: app.settings.tradition)
+
         case .medication:
             MedicationView(
                 model: app.medication,
@@ -237,6 +320,7 @@ struct RootView: View {
         await taskListModel?.load()
         await app.refreshProgress()
         await app.refreshCalibration()
+        await app.reflection.load()
         if app.settings.medicationTrackingEnabled {
             await app.medication.load()
         }
@@ -284,6 +368,8 @@ enum TaskRoute: Hashable {
     case collection
     case insights
     case medication
+    case stillness
+    case reflection
     case gallery
 }
 

@@ -126,6 +126,16 @@ final class BodyDoublingController {
         audio.setVolume(volume)
     }
 
+    /// The stillness layer's bell, routed through the one audio stack.
+    ///
+    /// Owned here rather than by the sit model so there is still exactly one
+    /// `AVAudioSession` configuration in the app, and so a bell can ring over a
+    /// soundscape that is already playing.
+    func ringBell(frequency: Double) {
+        guard settings.soundsEnabled else { return }
+        audio.playBell(frequency: frequency)
+    }
+
     /// Picks up whatever was playing last time, if it is still owned and the
     /// user has not turned sound off.
     private func resumeSavedSoundscape() {
