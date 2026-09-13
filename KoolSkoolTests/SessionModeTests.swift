@@ -26,7 +26,7 @@ struct SessionModeTests {
         let profile = SessionMode.classicPomodoro.defaultProfile
         #expect(profile.workDuration == 25 * 60)
         #expect(profile.breakDuration == 5 * 60)
-        #expect(profile.longBreakDuration == 15 * 60)
+        #expect(profile.longBreakDuration == TimeInterval(15 * 60))
         #expect(profile.sessionsUntilLongBreak == 4)
     }
 

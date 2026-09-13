@@ -257,7 +257,7 @@ struct FocusEngineTests {
 
         let snapshot = try #require(relaunched.snapshot)
         #expect(snapshot.elapsed == 8 * 60)
-        #expect(snapshot.remaining == 17 * 60)
+        #expect(snapshot.remaining == TimeInterval(17 * 60))
     }
 
     @Test("A session whose end passed while the app was gone is credited, dated honestly")
@@ -363,7 +363,7 @@ struct FocusEngineTests {
         await relaunched.restore()
 
         #expect(relaunched.status == .running)
-        #expect(relaunched.snapshot?.elapsed == 90 * 60)
+        #expect(relaunched.snapshot?.elapsed == TimeInterval(90 * 60))
     }
 
     @Test("Nothing to restore means idle, not a phantom session")
@@ -562,14 +562,20 @@ struct UnattendedResolutionTests {
         #expect(result?.endedAt == start.addingTimeInterval(25 * 60))
     }
 
-    @Test("With no heartbeat, a runaway count-up session stops at the ceiling")
+    @Test("With no heartbeat, a runaway count-up session is closed at its start")
     func countUpOverCeilingWithoutHeartbeat() {
         let result = FocusEngine.resolveUnattended(
             session(mode: .flowmodoro, planned: 0),
             now: start.addingTimeInterval(20 * 60 * 60)
         )
         #expect(result?.reason == .cappedAfterHeartbeat)
-        #expect(result?.endedAt == start.addingTimeInterval(FocusRules.maximumUnattendedCountUp))
+        // No heartbeat ever fired, so the last moment the app knew anyone was
+        // there is the moment it started. Crediting the full four-hour ceiling
+        // instead would be exactly the "phone died overnight reads as deep
+        // work" outcome the cap exists to prevent — and it is not counted as
+        // completed either way, so the only thing at stake is whether the
+        // history tells the truth.
+        #expect(result?.endedAt == start)
     }
 
     @Test("A heartbeat later than the ceiling is clamped to the ceiling")
