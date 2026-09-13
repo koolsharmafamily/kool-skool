@@ -40,7 +40,7 @@ struct FocusTask: SyncableRecord, Codable {
     var isCompleted: Bool { completedAt != nil }
 
     /// Whether this task is a must for the given day.
-    func isMust(on day: Date, using clock: some DateProvider) -> Bool {
+    func isMust(on day: Date, using clock: any DateProvider) -> Bool {
         guard let mustForDate else { return false }
         return clock.isSameDay(mustForDate, day)
     }

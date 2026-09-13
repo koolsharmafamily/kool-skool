@@ -48,7 +48,7 @@ enum StreakCalculator {
         completedDays: [Date],
         today: Date,
         previousLongest: Int,
-        clock: some DateProvider,
+        clock: any DateProvider,
         freezeBudget: Int = UserProgress.freezesPerMonth
     ) -> StreakOutcome {
         let active = Set(completedDays.map { clock.startOfDay(for: $0) })
@@ -134,7 +134,7 @@ enum StreakCalculator {
 
     /// Midnight on the first of the month containing `date`. Freezes are budgeted
     /// per calendar month, and the month that matters is the missed day's.
-    static func monthStart(of date: Date, clock: some DateProvider) -> Date? {
+    static func monthStart(of date: Date, clock: any DateProvider) -> Date? {
         var calendar = clock.calendar
         calendar.timeZone = clock.timeZone
         let components = calendar.dateComponents([.year, .month], from: date)

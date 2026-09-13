@@ -155,7 +155,7 @@ enum InsightsCalculator {
     static func timeOfDayBuckets(
         sessions: [FocusSession],
         checkIns: [CheckIn],
-        clock: some DateProvider
+        clock: any DateProvider
     ) -> [TimeOfDayBucket] {
         var calendar = clock.calendar
         calendar.timeZone = clock.timeZone
@@ -234,7 +234,7 @@ enum InsightsCalculator {
     static func medicationObservation(
         sessions: [FocusSession],
         logs: [MedicationLog],
-        clock: some DateProvider
+        clock: any DateProvider
     ) -> MedicationObservation? {
         let loggedDays = Set(
             logs
@@ -281,7 +281,7 @@ enum InsightsCalculator {
         frozenDays: [Date],
         today: Date,
         weeks: Int,
-        clock: some DateProvider
+        clock: any DateProvider
     ) -> [CalendarDay] {
         var calendar = clock.calendar
         calendar.timeZone = clock.timeZone
