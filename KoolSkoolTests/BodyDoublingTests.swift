@@ -68,7 +68,7 @@ struct SoundscapeCatalogueTests {
             return false
         }
         #expect(generated.count == 3)
-        #expect(generated.allSatisfy(\.isAvailable))
+        #expect(generated.allSatisfy { $0.isAvailable })
     }
 
     @Test("Recorded beds are honest about not being here yet")
@@ -143,7 +143,7 @@ struct NoiseSourceTests {
 
     @Test("Nothing is NaN or infinite", arguments: NoiseColour.allCases)
     func staysFinite(colour: NoiseColour) {
-        #expect(samples(colour).allSatisfy(\.isFinite))
+        #expect(samples(colour).allSatisfy { $0.isFinite })
     }
 
     @Test("Brown noise has more low-frequency energy than pink")
