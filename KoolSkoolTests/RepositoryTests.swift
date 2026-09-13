@@ -535,3 +535,27 @@ struct RepositoryTests {
         }
     }
 }
+
+/// The on-disk store, as the shipping app actually opens it.
+///
+/// Every other test in the suite runs in memory, so none of them can tell you
+/// whether the real thing works. This one does exactly what `AppEnvironment.live()`
+/// does on a cold launch. If it ever fails, the app falls back to a memory-only
+/// store and silently keeps nothing — the single worst failure this app has.
+@Suite("On-disk store")
+struct OnDiskStoreTests {
+
+    @Test("The store the app ships with can be opened on a fresh install")
+    func containerOpens() throws {
+        // `Library/Application Support` does not exist on a fresh iOS install.
+        // Something has to create it, and this asserts that something does.
+        let container = try KoolSkoolSchema.makeContainer()
+        #expect(container.schema.entities.isEmpty == false)
+    }
+
+    @Test("Every model in the schema is registered")
+    func schemaIsComplete() throws {
+        let container = try KoolSkoolSchema.makeContainer()
+        #expect(container.schema.entities.count == KoolSkoolSchema.models.count)
+    }
+}
