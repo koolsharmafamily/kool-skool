@@ -22,7 +22,7 @@ Nothing in the spec remains. The next real test is using it on a phone.
 
 The plan is personal use on your own iPhone first, not the App Store. A free Apple ID is enough for that, and there are two routes.
 
-**Without a Mac (from Windows).** Every push to `main` builds an unsigned `KoolSkool-unsigned.ipa`, attached to that run on the [Actions tab](https://github.com/koolsharmafamily/kool-skool/actions) as the `KoolSkool-unsigned-ipa` artifact. A Windows sideloading tool — Sideloadly, or AltStore with AltServer — re-signs it with your Apple ID and installs it over USB.
+**Without a Mac (from Windows).** Every push to `main` builds an unsigned `KoolSkool-unsigned.ipa`, attached to that run on the [Actions tab](https://github.com/koolsharmafamily/kool-skool/actions) as the `KoolSkool-unsigned-ipa` artifact. A Windows sideloading tool — Sideloadly, or AltStore with AltServer — re-signs it with your Apple ID and installs it over USB. Sideloadly needs the website versions of iTunes and iCloud from Apple installed first; the Microsoft Store versions don't work with it. The artifact downloads as a `.zip` with the `.ipa` inside, and expires after 30 days — every push makes a fresh one.
 
 **With a Mac.** Open the project in Xcode 16, add your Apple ID under Settings › Accounts, pick your Personal Team on both the `KoolSkool` and `KoolSkoolWidgetsExtension` targets, plug in the phone, and run.
 
@@ -30,7 +30,8 @@ What a free Apple ID means either way:
 
 - **The app stops opening after 7 days.** Re-sign and reinstall it. As long as the bundle identifier stays the same, your data stays too. AltStore and Sideloadly can refresh it over Wi-Fi.
 - **Developer Mode** has to be on (Settings › Privacy & Security), and the first launch needs your Apple ID trusted under Settings › General › VPN & Device Management.
-- **At most 3 sideloaded apps at once**, and a limit of 10 new app identifiers a week. Kool Skool uses two — the app and its widget extension — so reinstalling it with the same identifiers doesn't use up more.
+- **At most 3 sideloaded apps at once**, and a weekly limit on registering new app identifiers. Kool Skool needs two — the app and its widget extension — and reinstalling it reuses them.
+- **iOS 17 or later** on the phone.
 - **The widgets are a Just Start launcher**, because showing real data in them needs the paid-only App Group.
 
 Sideloading tools ask for your Apple ID password in order to sign with it. Some people use a separate Apple ID just for this; that's your call.
@@ -325,12 +326,16 @@ All reversible, all worth your veto.
 87. **An app icon.** The spec never mentioned one and the asset catalogue was empty. It's the depleting disc in acid green around the Just Start bolt, drawn in code, so there's no design file to lose.
 88. **An installable build on every push.** For personal use without a Mac or a paid account: an unsigned `.ipa`, re-signed with a free Apple ID on the way onto the phone. See "Putting it on your iPhone".
 89. **The audit's first run changed the palette.** It ran in light mode and found the tertiary grey at about 4.15:1 on the canvas — under the 4.5:1 that text this size needs — with the green, amber and coral accents close to the line. Those four light-mode colours are deeper now. Dark mode keeps its colours.
-90. **Text on an accent fill follows the appearance, not the accent.** Light text on every light-mode accent, dark text on every dark-mode accent. The old rule put light text on dark mode's electric blue and hot coral, which measured about 3:1. This is the most visible change: in dark mode the Just start button's label is now near-black on blue. `ContrastTests` checks every text-and-background pairing the design system uses, in both modes, on every run — and the audit now runs in dark mode too, because dark mode is the primary design and simulators start in light.
+90. **Text on an accent fill follows the appearance, not the accent.** Light text on every light-mode accent, dark text on every dark-mode accent. The old rule put light text on dark mode's electric blue and hot coral, which measured about 3:1. This is the most visible change: in dark mode the Just start button's label is now near-black on blue. `ContrastTests` checks every text colour on every surface, accent text on the canvas and cards, and text on every accent fill, in both modes, on every run — and the audit now runs in dark mode too, because dark mode is the primary design and simulators start in light.
 91. **The Lock Screen timer and Dynamic Island always use the dark-mode accents.** They draw on black whatever the phone's appearance, and the deepened light-mode colours would read poorly there.
 92. **Onboarding's small targets are full-size now.** Back, "Not now" and "I'll look around first" were tappable only on their letters, and the step dots were an 8pt-tall element.
 93. **The session disc and the breath pacer give way to text, not the other way round.** A shape between two spacers competes with them for space, so the captions under the disc were being squeezed. Both shapes are now sized first — as large as the screen allows — and shrink only when the text around them needs the room.
 94. **The session screen's text holds up at the end of a session.** By then the ambient wash warms the background enough that the quieter greys drop below 4.5:1, so the intent and morning intention use primary text and the captions the secondary grey.
 95. **Settings lists the session modes as rows.** A sideways-scrolling strip of chips pushed modes off the edge of the screen at large text sizes.
+96. **Seven audit findings are left, down from 69 on the first run.** All five walks pass. What remains, and why it stays for now:
+    - The rating scale's end labels ("1 is Rough, 5 is Went well") are a one-line caption, which the audit's tap-target rule calls too small. Hiding the caption to satisfy it would take the scale's meaning away from VoiceOver again.
+    - Tags drawn on a tinted chip sit just under 4.5:1 in two places: the practice lengths in the stillness library in dark mode (about 4:1), and the mode tag on the session screen in light mode, where the ambient wash tints the background. `ContrastTests` covers text on plain surfaces, not on these washes. A slightly brighter dark-mode indigo would clear the first — a small palette change worth making alongside whatever the first install on a phone turns up.
+    - "Change" on the second onboarding screen fails at XXL because the audit samples it while it's partly scrolled under the pinned button. Its colours measure 6.5:1.
 
 ---
 
@@ -373,7 +378,7 @@ All reversible, all worth your veto.
 - **Export** — health-adjacent records and medication settings left out by default, all of it when asked, deleted records left out, every setting exported somewhere, readable dates, the file reads back, one export at a time, the switch discarding a prepared file
 - **Settings** — every setting survives the store, flipped generically so a new one cannot be forgotten
 - **Accessibility lint** — no animation bypasses Reduce Motion, no literal point sizes, no gesture-only tap targets; runs before the build
-- **Accessibility audit** — Xcode's audit on every main screen and through onboarding, at default and XXL text sizes, and the main screens again in dark mode, with a screenshot of each
+- **Accessibility audit** — Xcode's audit on every main screen and through onboarding, at default and XXL text sizes, and the main screens again in dark mode, with a screenshot of each; the seven findings that remain are listed in judgement call 96
 - **Colour contrast** — every text colour on every surface, accent text on the canvas and cards, and text on every accent fill, all at 4.5:1 or better in both modes
 - **Data sensitivity** — the health-adjacent list is pinned
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
