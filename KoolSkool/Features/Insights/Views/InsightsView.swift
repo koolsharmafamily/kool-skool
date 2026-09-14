@@ -9,6 +9,8 @@ import SwiftUI
 struct InsightsView: View {
     let model: InsightsModel
     let includesMedication: Bool
+    /// The answer to onboarding's "when do you work best?", if one was given.
+    var preferredWorkTime: TimeOfDay?
 
     var body: some View {
         KSScreen(state: .ready) {
@@ -34,7 +36,7 @@ struct InsightsView: View {
         }
         .navigationTitle("Insights")
         .navigationBarTitleDisplayMode(.large)
-        .task { await model.load(includeMedication: includesMedication) }
+        .task { await model.load(includeMedication: includesMedication, preferredWorkTime: preferredWorkTime) }
     }
 
     // MARK: Totals
@@ -78,6 +80,11 @@ struct InsightsView: View {
                 TimeOfDayChart(buckets: model.buckets)
                 if let insight = model.insight {
                     insightText(insight.sentence)
+                }
+                if let preference = model.preferenceSentence {
+                    Text(preference)
+                        .ksFont(KSFont.body)
+                        .foregroundStyle(KSColor.textSecondary)
                 }
             } else {
                 waitingText

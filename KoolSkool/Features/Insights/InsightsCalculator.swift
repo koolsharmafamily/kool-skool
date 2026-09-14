@@ -1,55 +1,6 @@
 import Foundation
 
-/// Coarse times of day.
-///
-/// The spec asks for focus quality "by hour of day". With one person's sessions
-/// that is twenty-four mostly empty bars and a lot of noise — two sessions at
-/// 3pm is not a pattern. Five named blocks give each bar enough in it to mean
-/// something, and read as a sentence rather than a histogram.
-enum TimeOfDay: Int, CaseIterable, Sendable, Identifiable, Comparable {
-    case early
-    case morning
-    case afternoon
-    case evening
-    case late
-
-    var id: Int { rawValue }
-
-    static func < (lhs: TimeOfDay, rhs: TimeOfDay) -> Bool { lhs.rawValue < rhs.rawValue }
-
-    static func of(hour: Int) -> TimeOfDay {
-        switch hour {
-        case 5..<8: .early
-        case 8..<12: .morning
-        case 12..<17: .afternoon
-        case 17..<21: .evening
-        default: .late
-        }
-    }
-
-    var displayName: String {
-        switch self {
-        case .early: "Early"
-        case .morning: "Morning"
-        case .afternoon: "Afternoon"
-        case .evening: "Evening"
-        case .late: "Late"
-        }
-    }
-
-    var hoursLabel: String {
-        switch self {
-        case .early: "5–8am"
-        case .morning: "8am–12"
-        case .afternoon: "12–5pm"
-        case .evening: "5–9pm"
-        case .late: "9pm–5am"
-        }
-    }
-
-    /// For the sentence, lower-cased and made to sit after "your".
-    var phrase: String { displayName.lowercased() }
-}
+// `TimeOfDay` lives in `Domain/Core`: onboarding stores the user's answer in it.
 
 struct TimeOfDayBucket: Identifiable, Equatable, Sendable {
     var block: TimeOfDay
@@ -222,6 +173,26 @@ enum InsightsCalculator {
             isPattern: true,
             sentence: "Your \(best.block.phrase) sessions complete about \(roundedPercent)% more often than the rest."
         )
+    }
+
+    // MARK: What the user said
+
+    /// Holds onboarding's "when do you work best?" up against what the sessions
+    /// show — and only once there is an insight to hold it against.
+    ///
+    /// An observation about a guess. It never suggests changing anything: the
+    /// guess might be right for reasons the history cannot see.
+    static func preferenceSentence(preferred: TimeOfDay?, insight: TimeOfDayInsight?) -> String? {
+        guard let preferred, let insight else { return nil }
+        let said = "You said you work best \(preferred.whenPhrase)."
+
+        guard insight.isPattern else {
+            return "\(said) So far, your sessions go about as well whatever the time of day."
+        }
+        if insight.block == preferred {
+            return "\(said) Your sessions agree."
+        }
+        return "\(said) So far, your sessions complete most often \(insight.block.whenPhrase)."
     }
 
     // MARK: Medication

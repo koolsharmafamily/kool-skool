@@ -38,6 +38,8 @@ final class SDAppSettings {
     var offerBreakPractice: Bool = true
     var intervalBellsEnabled: Bool = false
 
+    var preferredWorkTimeRaw: Int?
+
     var hasCompletedOnboarding: Bool = false
 
     var defaultMode: SessionMode {
@@ -48,6 +50,11 @@ final class SDAppSettings {
     var tradition: Tradition {
         get { Tradition(rawValue: traditionRaw) ?? .secular }
         set { traditionRaw = newValue.rawValue }
+    }
+
+    var preferredWorkTime: TimeOfDay? {
+        get { preferredWorkTimeRaw.flatMap(TimeOfDay.init(rawValue:)) }
+        set { preferredWorkTimeRaw = newValue?.rawValue }
     }
 
     init(
@@ -95,6 +102,7 @@ extension SDAppSettings {
             tradition: tradition,
             offerBreakPractice: offerBreakPractice,
             intervalBellsEnabled: intervalBellsEnabled,
+            preferredWorkTime: preferredWorkTime,
             hasCompletedOnboarding: hasCompletedOnboarding
         )
     }
@@ -123,6 +131,7 @@ extension SDAppSettings {
         traditionRaw = dto.tradition.rawValue
         offerBreakPractice = dto.offerBreakPractice
         intervalBellsEnabled = dto.intervalBellsEnabled
+        preferredWorkTimeRaw = dto.preferredWorkTime?.rawValue
         hasCompletedOnboarding = dto.hasCompletedOnboarding
         deletedAt = dto.deletedAt
     }

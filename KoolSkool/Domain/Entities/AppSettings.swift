@@ -75,6 +75,9 @@ struct AppSettings: SyncableRecord, Codable {
 
     // MARK: Lifecycle
 
+    /// The answer to onboarding's "when do you work best?". Nil means skipped.
+    /// Insights holds it up against what the sessions show, once it can.
+    var preferredWorkTime: TimeOfDay?
     var hasCompletedOnboarding: Bool = false
 
     func resolvedProfile(for mode: SessionMode) -> SessionModeProfile {

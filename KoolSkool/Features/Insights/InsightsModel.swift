@@ -16,6 +16,8 @@ final class InsightsModel {
     private(set) var daysOfHistory = 0
     private(set) var buckets: [TimeOfDayBucket] = []
     private(set) var insight: TimeOfDayInsight?
+    /// Onboarding's "when do you work best?", held up against the history.
+    private(set) var preferenceSentence: String?
     private(set) var calendarDays: [CalendarDay] = []
     private(set) var recentSessions: [FocusSession] = []
     private(set) var medication: MedicationObservation?
@@ -38,7 +40,7 @@ final class InsightsModel {
         max(0, InsightsCalculator.minimumHistoryDays - daysOfHistory)
     }
 
-    func load(includeMedication: Bool) async {
+    func load(includeMedication: Bool, preferredWorkTime: TimeOfDay? = nil) async {
         do {
             let now = clock.now
             let windowStart = now.addingTimeInterval(-Double(Self.windowDays) * 86_400)
@@ -60,6 +62,7 @@ final class InsightsModel {
 
             buckets = InsightsCalculator.timeOfDayBuckets(sessions: sessions, checkIns: checkIns, clock: clock)
             insight = hasEnoughHistory ? InsightsCalculator.timeOfDayInsight(buckets) : nil
+            preferenceSentence = InsightsCalculator.preferenceSentence(preferred: preferredWorkTime, insight: insight)
 
             completedCount = countable.filter(\.wasCompleted).count
             totalFocusMinutes = countable.filter(\.wasCompleted).reduce(0) { $0 + $1.actualMinutes }

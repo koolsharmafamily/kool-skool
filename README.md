@@ -12,11 +12,11 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 9 complete — Live Activities, widgets, Siri and Shortcuts, and the session-end notification backstop.**
+**Milestone 10 complete — onboarding, Settings, and data export.**
 
 The full loop runs: dump what's in your head, pin up to three for today, break one into steps, say out loud what you're about to do, start a session with something working alongside you and a noise bed running, watch a disc drain while the background warms toward the deadline, glance at it on the Lock Screen without unlocking, get paid for it, take a breath practice on the break, and watch a streak build that forgives two missed days a month without being asked.
 
-Remaining milestones, in order: onboarding and settings → accessibility pass.
+Remaining: the accessibility audit and polish pass (Milestone 11).
 
 ### Widgets and the App Group — one switch for you to flip
 
@@ -42,7 +42,7 @@ Background audio also means the app now declares `UIBackgroundModes = audio`. Th
 
 ### Health-adjacent data
 
-Check-ins, the medication log, and reflections conform to `HealthAdjacentRecord`. Today that is only a label — there is no sync and no analytics, ever. It exists so the future sync engine has exactly one thing to check: those records are **excluded by default** and including them takes its own consent, separate from syncing tasks and sessions. A test pins the list, so changing it is a deliberate privacy decision rather than an accident.
+Check-ins, the medication log, and reflections conform to `HealthAdjacentRecord`. Today that is only a label — there is no sync and no analytics, ever. It exists so the future sync engine has exactly one thing to check: those records are **excluded by default** and including them takes its own consent, separate from syncing tasks and sessions. A test pins the list, so changing it is a deliberate privacy decision rather than an accident. Exports follow the same rule: those records — and the medication settings with them — are left out of the file unless you switch them in.
 
 Nothing about medication appears anywhere until someone switches tracking on. The app has no drug database and knows nothing about any medication — the only facts it holds are the ones typed into it. The daily reminder's lock-screen text is "Your daily reminder.", and a test fails if a future edit makes it say otherwise.
 
@@ -74,6 +74,8 @@ KoolSkool/
 │   ├── CheckIns/   Check-ins, the medication log and its reminder
 │   ├── Insights/   The calendar, the time-of-day chart, every observation sentence
 │   ├── Surfaces/   Live Activity, widget publishing, notifications, Siri and Shortcuts
+│   ├── Onboarding/ Four screens at most, then straight into Just Start
+│   ├── Settings/   Grouped settings and the data export
 │   ├── Stillness/  The breath pacer, the practice library, breaks, reflection
 │   └── BodyDoubling/   The companion, the audio stack, the commitment card
 ├── Domain/         Pure Sendable value types. No SwiftData, no SwiftUI.
@@ -274,6 +276,22 @@ All reversible, all worth your veto.
 65. **Session recovery moved from the root view into launch.** It has to finish before an intent can safely start anything, and a view's `.task` gave no ordering guarantee against the app's.
 66. **Widgets redraw on their own only at the planned end and at midnight.** Timers count themselves, and an unchanged snapshot is not republished, because the system budgets widget reloads.
 
+**Onboarding, Settings and export (M10)**
+
+67. **Onboarding gets you *into* a session inside 90 seconds, not through one.** The spec asks for a five-minute Just Start *and* a completed session inside 90 seconds of install; both can't be true. The quickest path in is four taps, and a test holds it there.
+68. **The framing choice is an optional row on the second screen, not a fifth screen.** The spec asks for it during onboarding and for four screens at most. It defaults to secular and needs no answer — an invitation, not a step.
+69. **What you want to focus on becomes today's first must, and the first session is on it.** A first session on nothing teaches less than one on the thing you came for. Skip the question and Just Start runs on nothing.
+70. **"When do you work best?" is kept, and held up against your history once Insights has enough.** "You said you work best in the morning. So far, your sessions complete most often in the afternoon." An observation about a guess, never a suggestion — a test forbids advice words in every combination.
+71. **The notifications screen only appears if the question is still unanswered.** Someone reinstalling who already allowed or refused gets three screens, not a dead one.
+72. **The session starts before onboarding is marked done.** The other order flashes Today for a frame between the last screen and the session.
+73. **"I'll look around first" is there, quietly.** The spec makes a session the last step; forcing one on someone who wants to explore is its own kind of friction. It is a text button under the one primary.
+74. **Settings is eight groups, each a short page, with one line of current state under each.** A single scroll of every switch was already long before durations, haptics, accessibility, export and about joined it.
+75. **Export leaves out check-ins, medication and reflections unless you switch them in — and the medication settings go with them.** Same default the future sync consent will have. A reminder time on its own says someone takes something.
+76. **A test fails if a setting is added and not exported, or added and not stored.** Both were done by hand every milestone until now; a forgotten one now breaks CI instead of someone's export or their next launch.
+77. **Export is prepared first and shared second, and each export replaces the last.** The count of what is about to leave the app is on screen before it does, and copies of someone's history don't pile up in the temporary folder.
+78. **Changing the health-data switch throws away a file already prepared.** Otherwise the file you share could disagree with the switch you're looking at.
+79. **There is no import.** The spec doesn't ask for one. The file is versioned and reads back — a test proves it — so adding import later is additive, not a format change.
+
 ---
 
 ## Testing
@@ -310,6 +328,10 @@ All reversible, all worth your veto.
 - **Session-end alerts** — scheduled at the planned end, none for Flowmodoro or an end already passed, the Lock Screen text never names the task, clearing never touches the medication reminder, swallowed in the foreground, the setting turns alerts off without turning off the Lock Screen timer
 - **Siri and Shortcuts** — every mode reachable, a start mid-launch waits then runs, a second start is refused, brain dump works with the app closed, an empty dump writes nothing
 - **Deep links** — every link round-trips, other schemes and unknown destinations are ignored
+- **Onboarding** — four screens at most, the quickest path into a session is four taps, the focus becomes today's must and the first session is on it, permission asked only on a tap and the screen skipped once answered, the session starts before onboarding is marked done, Just Start tapped twice starts one session
+- **What you said** — agreement, disagreement naming both times, no pattern reported as none, and no advice word in any combination
+- **Export** — health-adjacent records and medication settings left out by default, all of it when asked, deleted records left out, every setting exported somewhere, readable dates, the file reads back, one export at a time, the switch discarding a prepared file
+- **Settings** — every setting survives the store, flipped generically so a new one cannot be forgotten
 - **Data sensitivity** — the health-adjacent list is pinned
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks
@@ -320,8 +342,7 @@ Written as protocols now, implemented later, so nothing has to be retrofitted:
 
 - **The App Group** — written to and read from, never entitled. See the section at the top: one capability on two targets and the widgets show real data.
 - A Control Center control — needs a universal link, which needs a web domain. `DeepLink` is the seam: the same destinations over `https`.
-- The in-context notification ask — Milestone 10's onboarding. Until then, Settings has the Allow button.
-- A real Settings screen — Milestone 10. `TimeSettingsSheet` carries the Milestone 5 switches in the meantime, because a feature nobody can reach is a feature nobody can judge; it folds into Settings when that lands.
+- Import — the export is versioned and reads back, so an importer is additive.
 - Real multiplayer co-working rooms — out of scope for v1, they need a backend. `BodyDoublingProvider` is the seam: `LocalCompanionProvider` returns one synthetic coworker, a `RemoteRoomProvider` would return several real ones, and the session screen already renders a list rather than a single figure.
 - Recorded soundscapes — Café and Library expect `soundscape-cafe.m4a` and `soundscape-library.m4a` in the bundle and light up on their own once those exist.
 - `PracticeProvider` — `BundledPracticeProvider` reads a constant today. A `RemotePracticeProvider` serving a larger library replaces it and nothing else: views and view models talk to the repository, which is seeded from the provider.

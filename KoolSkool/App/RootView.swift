@@ -10,9 +10,9 @@ struct RootView: View {
     @State private var taskListModel: TaskListModel?
     @State private var collectionModel: CollectionModel?
     @State private var insightsModel: InsightsModel?
+    @State private var onboardingModel: OnboardingModel?
     @State private var path: [TaskRoute] = []
     @State private var setupTask: SetupRequest?
-    @State private var isPresentingTimeSettings = false
 
     private var engine: FocusEngine { app.focusEngine }
     private var stillness: StillnessModel { app.stillness }
@@ -23,12 +23,21 @@ struct RootView: View {
             // Slower on the way into stillness than anywhere else in the app.
             // The contrast between the two layers is meant to be felt.
             .ksAnimation(KSAnimation.calm, value: stillness.isRunning)
+            .ksAnimation(KSAnimation.gentle, value: app.settings.hasCompletedOnboarding)
             .sheet(item: $setupTask) { request in
                 setupSheet(for: request)
             }
             .task {
                 // The running session is recovered in `AppEnvironment.bootstrap()`.
                 await makeModelsIfNeeded()
+                makeOnboardingModelIfNeeded()
+            }
+            .onChange(of: app.isReady) { _, _ in
+                makeOnboardingModelIfNeeded()
+            }
+            .onChange(of: app.settings.hasCompletedOnboarding) { _, completed in
+                // Onboarding may have just pinned the first must.
+                if completed { Task { await refreshAll() } }
             }
             .onChange(of: scenePhase) { _, phase in
                 Task { await engine.scenePhaseChanged(to: phase) }
@@ -41,7 +50,6 @@ struct RootView: View {
                 // a sheet that was left up.
                 if status == .running {
                     setupTask = nil
-                    isPresentingTimeSettings = false
                 }
                 // Coming back from a session, Today may be stale — a task could
                 // have been marked done on the completion screen.
@@ -137,6 +145,23 @@ struct RootView: View {
             )
             .ksTransition(.opacity)
         } else {
+            homeOrOnboarding
+        }
+    }
+
+    /// First launch goes to onboarding; every launch after goes to Today.
+    @ViewBuilder
+    private var homeOrOnboarding: some View {
+        if !app.isReady && app.lastError == nil {
+            // Launch is still reading settings. Drawing Today now would flash it
+            // at someone who is about to see onboarding instead.
+            KSScreen(state: .ready) {
+                EmptyView()
+            }
+        } else if !app.settings.hasCompletedOnboarding, let onboardingModel {
+            OnboardingView(model: onboardingModel)
+                .ksTransition(.opacity)
+        } else {
             homeStack
         }
     }
@@ -183,15 +208,14 @@ struct RootView: View {
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        isPresentingTimeSettings = true
+                        path.append(.settings)
                     } label: {
-                        Label("Time and attention", systemImage: "slider.horizontal.3")
+                        Label("Settings", systemImage: "gearshape")
                     }
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    // Reviewing aid only. Settings, in Milestone 10, is where a
-                    // real entry point for this would live if it ships at all.
+                    // Reviewing aid only, and only in debug builds.
                     if Self.showsDesignSystemShortcut {
                         Button {
                             path.append(.gallery)
@@ -200,16 +224,6 @@ struct RootView: View {
                         }
                     }
                 }
-            }
-            .sheet(isPresented: $isPresentingTimeSettings) {
-                TimeSettingsSheet(
-                    settings: app.settings,
-                    calibration: app.calibration,
-                    notificationStatus: app.notificationStatus,
-                    onRequestNotifications: { Task { await app.requestNotifications() } },
-                    onChange: { mutate in Task { await app.updateSettings(mutate) } },
-                    onClose: { isPresentingTimeSettings = false }
-                )
             }
         }
     }
@@ -254,7 +268,8 @@ struct RootView: View {
             if let insightsModel {
                 InsightsView(
                     model: insightsModel,
-                    includesMedication: app.settings.medicationTrackingEnabled
+                    includesMedication: app.settings.medicationTrackingEnabled,
+                    preferredWorkTime: app.settings.preferredWorkTime
                 )
             }
 
@@ -287,6 +302,28 @@ struct RootView: View {
                 onChangeSettings: { mutate in Task { await app.updateSettings(mutate) } }
             )
             .onDisappear { Task { await app.medication.load() } }
+
+        case .settings:
+            SettingsView(
+                settings: app.settings,
+                notificationStatus: app.notificationStatus,
+                onOpen: { section in path.append(.settingsSection(section)) }
+            )
+
+        case let .settingsSection(section):
+            if section == .data {
+                DataExportScreen(repositories: app.repositories, clock: app.clock)
+            } else {
+                SettingsSectionView(
+                    section: section,
+                    settings: app.settings,
+                    calibration: app.calibration,
+                    notificationStatus: app.notificationStatus,
+                    onChange: { mutate in Task { await app.updateSettings(mutate) } },
+                    onRequestNotifications: { Task { await app.requestNotifications() } },
+                    onOpenMedication: { path.append(.medication) }
+                )
+            }
 
         case .gallery:
             DesignSystemGallery()
@@ -352,6 +389,25 @@ struct RootView: View {
         await refreshAll()
     }
 
+    /// Built only once launch has read the settings, so it starts from the
+    /// user's real notification status rather than a guess.
+    private func makeOnboardingModelIfNeeded() {
+        guard app.isReady, !app.settings.hasCompletedOnboarding, onboardingModel == nil else { return }
+
+        onboardingModel = OnboardingModel(
+            repositories: app.repositories,
+            clock: app.clock,
+            initialSettings: app.settings,
+            notificationStatus: app.notificationStatus,
+            applySettings: { mutate in await app.updateSettings(mutate) },
+            requestNotifications: {
+                await app.requestNotifications()
+                return app.notificationStatus
+            },
+            startSession: { plan in await engine.start(plan) }
+        )
+    }
+
     private func refreshAll() async {
         await todayModel?.load()
         await taskListModel?.load()
@@ -408,6 +464,8 @@ enum TaskRoute: Hashable {
     case medication
     case stillness
     case reflection
+    case settings
+    case settingsSection(SettingsSection)
     case gallery
 }
 
