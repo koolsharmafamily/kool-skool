@@ -12,11 +12,17 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 8 complete — the stillness layer: breath pacer, practice library, breaks, framings, reflection, calm streak.**
+**Milestone 9 complete — Live Activities, widgets, Siri and Shortcuts, and the session-end notification backstop.**
 
-The full loop runs: dump what's in your head, pin up to three for today, break one into steps, say out loud what you're about to do, start a session with something working alongside you and a noise bed running, watch a disc drain while the background warms toward the deadline, get paid for it, take a breath practice on the break, and watch a streak build that forgives two missed days a month without being asked.
+The full loop runs: dump what's in your head, pin up to three for today, break one into steps, say out loud what you're about to do, start a session with something working alongside you and a noise bed running, watch a disc drain while the background warms toward the deadline, glance at it on the Lock Screen without unlocking, get paid for it, take a breath practice on the break, and watch a streak build that forgives two missed days a month without being asked.
 
-Remaining milestones, in order: Live Activities and widgets → onboarding and settings → accessibility pass.
+Remaining milestones, in order: onboarding and settings → accessibility pass.
+
+### Widgets and the App Group — one switch for you to flip
+
+The home screen and Lock Screen widgets read a small snapshot the app writes into the App Group `group.com.koolskool.app`. **The entitlement for that group is deliberately not set**, because a free Apple ID cannot sign an App Group, and adding it would stop the app installing on a device for anyone on a free account.
+
+So as shipped, the widgets work as a one-tap **Just Start** launcher, and the Live Activity and Dynamic Island — which need no App Group — work fully. If you have a paid Developer Program account, add the **App Groups** capability with `group.com.koolskool.app` to both the `KoolSkool` and `KoolSkoolWidgetsExtension` targets, and the widgets start showing the streak, today's three, and the running timer. No code changes.
 
 ### Content in the stillness layer
 
@@ -46,7 +52,9 @@ Nothing about medication appears anywhere until someone switches tracking on. Th
 
 Requires **Xcode 16 or newer**. Open `KoolSkool.xcodeproj` and run.
 
-Set your own team under Signing & Capabilities before running on a device. `PRODUCT_BUNDLE_IDENTIFIER` is `com.koolskool.app`; change it if that clashes with something you already own.
+Set your own team under Signing & Capabilities before running on a device — on **both** the `KoolSkool` and `KoolSkoolWidgetsExtension` targets. The bundle identifiers are `com.koolskool.app` and `com.koolskool.app.widgets`; the extension's must stay prefixed by the app's, so change both together if they clash with something you already own.
+
+Every push is compiled and tested on a macOS runner by `.github/workflows/build.yml`. The project is written on Windows, where the Apple SDKs do not exist, so that workflow is the only place the code meets a compiler.
 
 The project uses Xcode 16 file-system-synchronized groups, so **new files are picked up automatically** from the `KoolSkool/` and `KoolSkoolTests/` folders. There is no file list in the project to keep in step.
 
@@ -65,6 +73,7 @@ KoolSkool/
 │   ├── TimeBlindness/  The disc, the ambient shift, estimate calibration
 │   ├── CheckIns/   Check-ins, the medication log and its reminder
 │   ├── Insights/   The calendar, the time-of-day chart, every observation sentence
+│   ├── Surfaces/   Live Activity, widget publishing, notifications, Siri and Shortcuts
 │   ├── Stillness/  The breath pacer, the practice library, breaks, reflection
 │   └── BodyDoubling/   The companion, the audio stack, the commitment card
 ├── Domain/         Pure Sendable value types. No SwiftData, no SwiftUI.
@@ -75,6 +84,9 @@ KoolSkool/
 │   ├── Models/     @Model classes plus their mapping to and from Domain
 │   └── SwiftData/  The store actor and its repository conformances
 └── Preview/        Preview helpers, the unavailable-store provider, the gallery
+
+KoolSkoolShared/    Compiled into the app and the widget extension. May reference nothing app-only.
+KoolSkoolWidgets/   The widget extension: Live Activity, Dynamic Island, home and Lock Screen widgets
 ```
 
 The dependency rule is one-way: `App` and future feature folders depend on `Domain`. `Persistence` depends on `Domain`. **Nothing depends on `Persistence`** except the composition root, which picks an implementation.
@@ -245,6 +257,23 @@ All reversible, all worth your veto.
 51. **The morning intention appears during a session only when the session has no intent of its own.** Both are one line of text above the disc, and three lines up there is three lines nobody reads.
 52. **The framing changes the bell's pitch.** That is the spec's "ambient sound palette", done with the synthesiser that already exists rather than with audio files that do not.
 
+**System surfaces (M9)**
+
+53. **No App Group entitlement by default.** See the section at the top. Free accounts cannot sign one, and a widget that stops the app installing is a worse trade than a widget that is only a launcher until you flip one switch.
+54. **No Control Center control.** `OpenURLIntent` rejects custom URL schemes, so opening the app from a control needs a universal link, which needs a web domain. The spec said "if straightforward"; it isn't.
+55. **The Live Activity carries dates and is never updated while a session runs.** The system renders the countdown from `startedAt` and `plannedEnd`, so the Lock Screen cannot disagree with the app — the same "nothing counts down" rule as the engine, applied outside it.
+56. **It goes stale at the planned end.** A session that runs out with the app closed turns coral and says "Time's up" instead of sitting on a frozen 0:00 until someone opens the app.
+57. **It is dismissed immediately when a session finishes.** A session only ever finishes with the app in the foreground, where the completion screen has already replaced it. Keeping it on the Lock Screen afterwards would be clutter.
+58. **The Live Activity shows the task; Lock Screen widgets never do.** The first is a session you started seconds ago. The second is always on, readable by whoever picks the phone up. The session-end notification never names the task either.
+59. **The session-end alert never asks for permission on its own.** The moment a session starts is the worst moment for a dialog. Settings has an Allow button until onboarding asks in context in Milestone 10, and the switch there reflects what iOS actually allows, not what the setting says.
+60. **The session-end banner is swallowed while the app is open.** The completion screen is the notification. The medication reminder still shows.
+61. **"Start a focus session" from Siri skips the setup screen.** Asking questions between the request and the session is the friction the app exists to remove. A request that arrives mid-launch waits until any running session has been recovered, and one that arrives during a session or a sit is refused rather than stacked.
+62. **Brain dump from Siri does not open the app.** Getting a thought out of your head should not cost you whatever you were in the middle of.
+63. **One model container per process.** Intents can run the app with no interface, and two containers on one store file in one process is a way to lose writes. Both go through `SharedStore`.
+64. **Nothing health-adjacent can reach a widget, by construction.** `WidgetSnapshot.make` does not take check-ins, medication or reflections as parameters, and a test pins the snapshot's key list.
+65. **Session recovery moved from the root view into launch.** It has to finish before an intent can safely start anything, and a view's `.task` gave no ordering guarantee against the app's.
+66. **Widgets redraw on their own only at the planned end and at midnight.** Timers count themselves, and an unchanged snapshot is not republished, because the system budgets widget reloads.
+
 ---
 
 ## Testing
@@ -276,6 +305,11 @@ All reversible, all worth your veto.
 - **Breaks** — the offer respects its setting, Just Start has no break so offers none, the suggestion always fits inside the break, a longer break gets a longer practice, a locked practice is never suggested
 - **Interval bells** — off unless asked for, spaced by elapsed time so they cannot drift, the sound anchor rings either way, short sits stay quiet
 - **Reflection** — the morning line and the evening close land in one row, writing the evening does not wipe the morning, saying nothing writes nothing, a new day starts blank
+- **Live Activity** — carries dates not a countdown, a count-up session never goes stale, the timer range is never backwards, a relaunch updates the activity rather than stacking one, a new session clears leftovers
+- **Widgets** — the snapshot's key allowlist, the rule-of-three cap, streak wording matching the app's, idle to running to time's up, yesterday's musts hidden today, unchanged pictures not resent, redraws only at the planned end and midnight, a snapshot from another version ignored
+- **Session-end alerts** — scheduled at the planned end, none for Flowmodoro or an end already passed, the Lock Screen text never names the task, clearing never touches the medication reminder, swallowed in the foreground, the setting turns alerts off without turning off the Lock Screen timer
+- **Siri and Shortcuts** — every mode reachable, a start mid-launch waits then runs, a second start is refused, brain dump works with the app closed, an empty dump writes nothing
+- **Deep links** — every link round-trips, other schemes and unknown destinations are ignored
 - **Data sensitivity** — the health-adjacent list is pinned
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks
@@ -284,9 +318,9 @@ All reversible, all worth your veto.
 
 Written as protocols now, implemented later, so nothing has to be retrofitted:
 
-- `SessionAlertScheduling` — the local-notification backstop. No-op until Milestone 9, where the permission prompt belongs. The engine's schedule-on-start and cancel-on-early-end paths are already written and tested.
-- Live Activities and Dynamic Island — Milestone 9.
-- Home screen and Lock Screen widgets — Milestone 9, with Live Activities.
+- **The App Group** — written to and read from, never entitled. See the section at the top: one capability on two targets and the widgets show real data.
+- A Control Center control — needs a universal link, which needs a web domain. `DeepLink` is the seam: the same destinations over `https`.
+- The in-context notification ask — Milestone 10's onboarding. Until then, Settings has the Allow button.
 - A real Settings screen — Milestone 10. `TimeSettingsSheet` carries the Milestone 5 switches in the meantime, because a feature nobody can reach is a feature nobody can judge; it folds into Settings when that lands.
 - Real multiplayer co-working rooms — out of scope for v1, they need a backend. `BodyDoublingProvider` is the seam: `LocalCompanionProvider` returns one synthetic coworker, a `RemoteRoomProvider` would return several real ones, and the session screen already renders a list rather than a single figure.
 - Recorded soundscapes — Café and Library expect `soundscape-cafe.m4a` and `soundscape-library.m4a` in the bundle and light up on their own once those exist.
