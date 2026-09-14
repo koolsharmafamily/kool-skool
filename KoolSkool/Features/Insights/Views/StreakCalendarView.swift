@@ -39,13 +39,20 @@ struct StreakCalendarView: View {
         return Array(symbols[first...] + symbols[..<first])
     }
 
+    /// One line when it fits; a column at large text sizes rather than clipped.
     private var legend: some View {
-        HStack(spacing: KSSpacing.md) {
-            legendItem(colour: KSColor.accent(.focusing), label: "Session")
-            legendItem(colour: KSColor.accent(.stillness), label: "Freeze")
-            legendItem(colour: KSColor.track, label: "No session")
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: KSSpacing.md) { legendItems }
+            VStack(alignment: .leading, spacing: KSSpacing.xs) { legendItems }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var legendItems: some View {
+        legendItem(colour: KSColor.accent(.focusing), label: "Session")
+        legendItem(colour: KSColor.accent(.stillness), label: "Freeze")
+        legendItem(colour: KSColor.track, label: "No session")
     }
 
     private func legendItem(colour: Color, label: String) -> some View {
@@ -63,6 +70,8 @@ struct StreakCalendarView: View {
 private struct DayCell: View {
     let day: CalendarDay
 
+    @ScaledMetric(relativeTo: .caption2) private var glyphSize: CGFloat = 11
+
     var body: some View {
         RoundedRectangle(cornerRadius: KSRadius.sm, style: .continuous)
             .fill(fill)
@@ -70,7 +79,7 @@ private struct DayCell: View {
             .overlay {
                 if day.state == .frozen {
                     Image(systemName: "snowflake")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: glyphSize, weight: .semibold))
                         .foregroundStyle(KSColor.onDark)
                 }
             }

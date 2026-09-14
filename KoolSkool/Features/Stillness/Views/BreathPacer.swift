@@ -85,7 +85,8 @@ struct BreathPacer: View {
             Text("\(tick.countInStep)")
                 .ksFont(KSFont.displaySmall)
                 .foregroundStyle(KSColor.accent(.stillness))
-                .contentTransition(.numericText())
+                // Rolling digits are motion too; under Reduce Motion they just change.
+                .contentTransition(reduceMotion ? .identity : .numericText())
 
             if reduceMotion {
                 phaseBar

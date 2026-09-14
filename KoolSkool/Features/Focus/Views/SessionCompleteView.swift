@@ -2,12 +2,10 @@ import SwiftUI
 
 /// The post-session screen.
 ///
-/// Says honestly what happened, pays out, and offers to keep going. The
-/// celebration plays over the top on arrival and gets out of the way after a
-/// second and a half, or sooner if tapped.
-///
-/// The energy check-in lands in Milestone 7; that space is left empty rather
-/// than filled with a placeholder.
+/// Says honestly what happened, pays out, asks one optional question about how
+/// it went, and offers to keep going. The celebration plays over the top on
+/// arrival and gets out of the way after a second and a half, or sooner if
+/// tapped — or, with VoiceOver running, once it has been read.
 struct SessionCompleteView: View {
     let session: FocusSession
     var linkedTask: FocusTask?
@@ -29,27 +27,35 @@ struct SessionCompleteView: View {
 
     var body: some View {
         KSScreen(state: session.wasCompleted ? .focusing : .ready) {
-            VStack(alignment: .leading, spacing: KSSpacing.lg) {
-                Spacer(minLength: KSSpacing.xl)
+            VStack(alignment: .leading, spacing: KSSpacing.md) {
+                // Scrolls only when it has to: at the largest text sizes, or with
+                // a reward, a commitment, a task and a check-in all showing at
+                // once. The actions stay pinned below either way.
+                ScrollView {
+                    VStack(alignment: .leading, spacing: KSSpacing.lg) {
+                        headline
+                        if let award, award.hasAnythingToShow { RewardSummary(award: award) }
 
-                headline
-                if let award, award.hasAnythingToShow { RewardSummary(award: award) }
-
-                // The commitment replaces the intent when it was used, so only
-                // one of these ever appears.
-                if !session.commitment.isEmpty {
-                    CommitmentRecap(
-                        commitment: session.commitment,
-                        minutes: minutes,
-                        kept: session.wasCompleted
-                    )
-                } else if !session.intent.isEmpty {
-                    intentCard
+                        // The commitment replaces the intent when it was used, so only
+                        // one of these ever appears.
+                        if !session.commitment.isEmpty {
+                            CommitmentRecap(
+                                commitment: session.commitment,
+                                minutes: minutes,
+                                kept: session.wasCompleted
+                            )
+                        } else if !session.intent.isEmpty {
+                            intentCard
+                        }
+                        if let task = linkedTask { taskCard(task) }
+                        if let onCheckIn { checkInCard(onCheckIn) }
+                    }
+                    .padding(.top, KSSpacing.xl)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                if let task = linkedTask { taskCard(task) }
-                if let onCheckIn { checkInCard(onCheckIn) }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
 
-                Spacer(minLength: KSSpacing.md)
                 actions
             }
             .padding(.vertical, KSSpacing.lg)

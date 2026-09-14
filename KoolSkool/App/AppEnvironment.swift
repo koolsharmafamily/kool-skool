@@ -220,6 +220,15 @@ final class AppEnvironment {
 }
 
 extension AppEnvironment {
+    /// What the app launches with: the real store — or, in a debug build run by
+    /// the UI tests, a seeded memory-only stand-in.
+    static func launch() -> AppEnvironment {
+        #if DEBUG
+        if UITesting.isActive { return .uiTesting() }
+        #endif
+        return .live()
+    }
+
     /// Builds the live stack, falling back to an in-memory store if the on-disk
     /// one cannot be opened.
     ///

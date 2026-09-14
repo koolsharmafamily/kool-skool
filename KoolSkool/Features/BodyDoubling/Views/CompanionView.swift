@@ -15,6 +15,8 @@ struct CompanionView: View {
     @Environment(\.ksEnergyState) private var energyState
     @Environment(\.ksReduceMotion) private var reduceMotion
     @State private var isBreathing = false
+    /// Grows with the user's text size, like everything else on the screen.
+    @ScaledMetric(relativeTo: .largeTitle) private var figureSize: CGFloat = 34
 
     private var skin: CompanionSkin {
         guard case let .companion(skinKey) = coworker.kind else { return .default }
@@ -33,9 +35,12 @@ struct CompanionView: View {
 
     private var figure: some View {
         Image(systemName: skin.symbolName)
-            .font(.system(size: 34, weight: .semibold))
+            .font(.system(size: figureSize, weight: .semibold))
             .foregroundStyle(KSColor.accent(energyState))
             .symbolEffect(.bounce, value: milestoneCount)
+            // The milestone bounce is motion like any other: under Reduce Motion
+            // — the system's or the app's own — it does not play.
+            .symbolEffectsRemoved(reduceMotion)
             .scaleEffect(breathScale)
             .animation(breathAnimation, value: isBreathing)
             .onAppear { isBreathing = true }

@@ -32,8 +32,10 @@ struct RootView: View {
                 await makeModelsIfNeeded()
                 makeOnboardingModelIfNeeded()
             }
-            .onChange(of: app.isReady) { _, _ in
+            .onChange(of: app.isReady) { _, isReady in
                 makeOnboardingModelIfNeeded()
+                // Launch can finish after Today first loaded; draw what it read.
+                if isReady { Task { await refreshAll() } }
             }
             .onChange(of: app.settings.hasCompletedOnboarding) { _, completed in
                 // Onboarding may have just pinned the first must.
@@ -187,7 +189,8 @@ struct RootView: View {
                         intention: app.reflection.morningIntention,
                         calmStreak: app.progress.calmStreak,
                         onOpenReflection: { path.append(.reflection) },
-                        onOpenStillness: { path.append(.stillness) }
+                        onOpenStillness: { path.append(.stillness) },
+                        storeWarning: app.storeWarning
                     )
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -268,7 +271,6 @@ struct RootView: View {
             if let insightsModel {
                 InsightsView(
                     model: insightsModel,
-                    includesMedication: app.settings.medicationTrackingEnabled,
                     preferredWorkTime: app.settings.preferredWorkTime
                 )
             }

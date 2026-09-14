@@ -20,7 +20,6 @@ final class InsightsModel {
     private(set) var preferenceSentence: String?
     private(set) var calendarDays: [CalendarDay] = []
     private(set) var recentSessions: [FocusSession] = []
-    private(set) var medication: MedicationObservation?
     private(set) var progress = UserProgress()
     private(set) var calibration = EstimateCalibration.unknown
     private(set) var totalFocusMinutes = 0
@@ -40,7 +39,7 @@ final class InsightsModel {
         max(0, InsightsCalculator.minimumHistoryDays - daysOfHistory)
     }
 
-    func load(includeMedication: Bool, preferredWorkTime: TimeOfDay? = nil) async {
+    func load(preferredWorkTime: TimeOfDay? = nil) async {
         do {
             let now = clock.now
             let windowStart = now.addingTimeInterval(-Double(Self.windowDays) * 86_400)
@@ -69,13 +68,6 @@ final class InsightsModel {
             recentSessions = Array(countable.sorted { $0.startedAt > $1.startedAt }.prefix(20))
 
             try await loadCalendar(now: now)
-
-            if includeMedication {
-                let logs = try await repositories.medication.logs(in: range)
-                medication = InsightsCalculator.medicationObservation(sessions: sessions, logs: logs, clock: clock)
-            } else {
-                medication = nil
-            }
 
             error = nil
         } catch {

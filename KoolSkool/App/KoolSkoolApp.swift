@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct KoolSkoolApp: App {
-    @State private var appEnvironment = AppEnvironment.live()
+    @State private var appEnvironment = AppEnvironment.launch()
 
     init() {
         // Installed before any notification can arrive, so a session-end alert
@@ -18,6 +18,11 @@ struct KoolSkoolApp: App {
                 // one; `ksReduceMotion` is the OR of the two.
                 .ksReduceMotionOverride(appEnvironment.settings.reduceMotionOverride)
                 .task {
+                    #if DEBUG
+                    if UITesting.isActive {
+                        await appEnvironment.seedForUITesting()
+                    }
+                    #endif
                     await appEnvironment.bootstrap()
                     // Only now can an intent that arrived mid-launch safely start
                     // a session: bootstrap has recovered any running one.

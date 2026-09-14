@@ -38,6 +38,16 @@
                ReferencedContainer = "container:KoolSkool.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "1A0000000000000000000013"
+               BuildableName = "KoolSkoolUITests.xctest"
+               BlueprintName = "KoolSkoolUITests"
+               ReferencedContainer = "container:KoolSkool.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

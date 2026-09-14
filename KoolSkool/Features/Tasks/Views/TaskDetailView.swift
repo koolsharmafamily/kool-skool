@@ -12,6 +12,8 @@ struct TaskDetailView: View {
 
     @State private var newStepTitle = ""
     @FocusState private var focusedField: Field?
+    @ScaledMetric(relativeTo: .title3) private var stepIconSize: CGFloat = 20
+    @ScaledMetric(relativeTo: .title2) private var addIconSize: CGFloat = 26
 
     private enum Field: Hashable {
         case title, nextStep, notes, newStep
@@ -130,9 +132,9 @@ struct TaskDetailView: View {
                 Task { await model.toggleStep(step) }
             } label: {
                 Image(systemName: step.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: stepIconSize, weight: .semibold))
                     .foregroundStyle(step.isDone ? KSColor.accent(.focusing) : KSColor.textTertiary)
-                    .frame(width: KSSize.minimumTapTarget, height: KSSize.minimumTapTarget)
+                    .frame(width: max(KSSize.minimumTapTarget, stepIconSize + 24), height: max(KSSize.minimumTapTarget, stepIconSize + 24))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -172,7 +174,7 @@ struct TaskDetailView: View {
 
             Button(action: addStep) {
                 Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 26))
+                    .font(.system(size: addIconSize))
                     .foregroundStyle(KSColor.accent(.ready))
             }
             .buttonStyle(.plain)

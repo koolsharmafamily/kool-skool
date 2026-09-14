@@ -9,15 +9,17 @@ struct MedicationRow: View {
     let model: MedicationModel
     let onOpen: () -> Void
 
+    @ScaledMetric(relativeTo: .title3) private var iconSize: CGFloat = 22
+
     var body: some View {
         HStack(spacing: KSSpacing.sm) {
             Button {
                 Task { await model.toggleToday() }
             } label: {
                 Image(systemName: model.isLoggedToday ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: iconSize, weight: .semibold))
                     .foregroundStyle(model.isLoggedToday ? KSColor.accent(.focusing) : KSColor.textTertiary)
-                    .frame(width: KSSize.minimumTapTarget, height: KSSize.minimumTapTarget)
+                    .frame(width: max(KSSize.minimumTapTarget, iconSize + 22), height: max(KSSize.minimumTapTarget, iconSize + 22))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

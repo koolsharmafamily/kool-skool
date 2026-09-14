@@ -14,31 +14,37 @@ struct SitClosingView: View {
 
     var body: some View {
         KSScreen(state: .stillness) {
-            VStack(alignment: .leading, spacing: KSSpacing.lg) {
-                Spacer(minLength: KSSpacing.xl)
+            VStack(alignment: .leading, spacing: KSSpacing.md) {
+                // Scrolls only if the largest text sizes need it; Done stays
+                // pinned below either way.
+                ScrollView {
+                    VStack(alignment: .leading, spacing: KSSpacing.lg) {
+                        VStack(alignment: .leading, spacing: KSSpacing.xs) {
+                            Text(headline)
+                                .ksFont(KSFont.title)
+                                .foregroundStyle(KSColor.textPrimary)
 
-                VStack(alignment: .leading, spacing: KSSpacing.xs) {
-                    Text(headline)
-                        .ksFont(KSFont.title)
-                        .foregroundStyle(KSColor.textPrimary)
+                            Text(detail)
+                                .ksFont(KSFont.body)
+                                .foregroundStyle(KSColor.textSecondary)
+                        }
+                        .accessibilityElement(children: .combine)
 
-                    Text(detail)
-                        .ksFont(KSFont.body)
-                        .foregroundStyle(KSColor.textSecondary)
+                        closingCard
+
+                        if calmStreak > 0 {
+                            KSTag(
+                                text: StillnessCopy.calmStreakLabel(calmStreak),
+                                systemImage: "moon.stars",
+                                state: .stillness
+                            )
+                        }
+                    }
+                    .padding(.top, KSSpacing.xl)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .accessibilityElement(children: .combine)
-
-                closingCard
-
-                if calmStreak > 0 {
-                    KSTag(
-                        text: StillnessCopy.calmStreakLabel(calmStreak),
-                        systemImage: "moon.stars",
-                        state: .stillness
-                    )
-                }
-
-                Spacer(minLength: KSSpacing.md)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
 
                 KSPrimaryButton(title: "Done", systemImage: "checkmark", action: onDone)
             }

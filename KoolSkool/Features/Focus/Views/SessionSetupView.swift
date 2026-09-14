@@ -36,31 +36,41 @@ struct SessionSetupView: View {
 
     var body: some View {
         KSScreen(state: .ready) {
-            VStack(alignment: .leading, spacing: KSSpacing.lg) {
-                if let task = preselectedTask { taskCard(task) }
-                modeSection
+            VStack(alignment: .leading, spacing: KSSpacing.md) {
+                // Still one screen with no extra steps. It scrolls only when the
+                // content outgrows it — at the largest text sizes — and Start
+                // stays pinned below either way.
+                ScrollView {
+                    VStack(alignment: .leading, spacing: KSSpacing.lg) {
+                        if let task = preselectedTask { taskCard(task) }
+                        modeSection
 
-                // One or the other, never both — they ask nearly the same
-                // question and this screen has ten seconds before people bounce.
-                if settings.commitmentCardEnabled {
-                    CommitmentField(
-                        text: $commitment,
-                        minutes: plannedMinutes,
-                        isCountUp: mode.defaultProfile.countsUp
-                    )
-                } else {
-                    intentSection
+                        // One or the other, never both — they ask nearly the same
+                        // question and this screen has ten seconds before people bounce.
+                        if settings.commitmentCardEnabled {
+                            CommitmentField(
+                                text: $commitment,
+                                minutes: plannedMinutes,
+                                isCountUp: mode.defaultProfile.countsUp
+                            )
+                        } else {
+                            intentSection
+                        }
+
+                        resistanceSection
+
+                        // Off by default. When on it is one compact block, never a
+                        // separate step, and blank is a perfectly good answer.
+                        if settings.preSessionCheckIn {
+                            checkInSection
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
+                .scrollDismissesKeyboard(.interactively)
 
-                resistanceSection
-
-                // Off by default. When on it is one compact block, never a
-                // separate step, and blank is a perfectly good answer.
-                if settings.preSessionCheckIn {
-                    checkInSection
-                }
-
-                Spacer(minLength: 0)
                 KSPrimaryButton(title: startTitle, systemImage: "play.fill") {
                     onStart(plan)
                 }

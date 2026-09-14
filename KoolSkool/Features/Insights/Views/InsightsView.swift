@@ -8,7 +8,6 @@ import SwiftUI
 /// screen says how long until there will be instead of guessing.
 struct InsightsView: View {
     let model: InsightsModel
-    let includesMedication: Bool
     /// The answer to onboarding's "when do you work best?", if one was given.
     var preferredWorkTime: TimeOfDay?
 
@@ -21,7 +20,6 @@ struct InsightsView: View {
                     timeOfDayCard
                     if model.hasQualityData { qualityCard }
                     estimatesCard
-                    if includesMedication { medicationCard }
                     historyCard
 
                     if let error = model.error {
@@ -36,7 +34,7 @@ struct InsightsView: View {
         }
         .navigationTitle("Insights")
         .navigationBarTitleDisplayMode(.large)
-        .task { await model.load(includeMedication: includesMedication, preferredWorkTime: preferredWorkTime) }
+        .task { await model.load(preferredWorkTime: preferredWorkTime) }
     }
 
     // MARK: Totals
@@ -107,24 +105,6 @@ struct InsightsView: View {
                 insightText(summary)
             } else {
                 Text("After \(EstimateCalibrator.minimumSamples) finished tasks with an estimate, this shows how far off they tend to run. \(model.calibration.sampleCount) so far.")
-                    .ksFont(KSFont.caption)
-                    .foregroundStyle(KSColor.textSecondary)
-            }
-        }
-    }
-
-    /// The sensitive one. The observation is shown only once both groups have a
-    /// week of days behind them, and it always carries the caveat inline rather
-    /// than in a footnote somewhere else.
-    private var medicationCard: some View {
-        section("Medication log") {
-            if let observation = model.medication {
-                insightText(observation.sentence)
-                Text("This is a pattern in what you've logged, not a medical finding — a day without a log isn't necessarily a day without it, and plenty else changes day to day. Talk to whoever prescribes it before changing anything.")
-                    .ksFont(KSFont.caption)
-                    .foregroundStyle(KSColor.textTertiary)
-            } else {
-                Text("Once there are \(InsightsCalculator.minimumDaysPerMedicationGroup) days with a log and \(InsightsCalculator.minimumDaysPerMedicationGroup) without, this shows how sessions went on each.")
                     .ksFont(KSFont.caption)
                     .foregroundStyle(KSColor.textSecondary)
             }

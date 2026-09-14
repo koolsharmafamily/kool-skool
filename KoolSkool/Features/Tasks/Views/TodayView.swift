@@ -23,6 +23,8 @@ struct TodayView: View {
     var calmStreak: Int = 0
     var onOpenReflection: () -> Void = {}
     var onOpenStillness: () -> Void = {}
+    /// Set when saved data could not be opened and the app is running in memory.
+    var storeWarning: String?
 
     @State private var isPresentingBrainDump = false
     @State private var isPresentingPicker = false
@@ -34,6 +36,10 @@ struct TodayView: View {
                     statusRow
                     heading
                     freezeNote
+
+                    if let storeWarning {
+                        storeWarningBanner(storeWarning)
+                    }
 
                     if let notice = model.notice {
                         noticeBanner(notice)
@@ -171,13 +177,38 @@ struct TodayView: View {
         }
     }
 
+    /// Side by side when both labels fit; stacked at large text sizes rather
+    /// than truncating either one.
     private var secondaryRow: some View {
-        HStack(spacing: KSSpacing.sm) {
-            KSSecondaryButton(title: "Brain dump", systemImage: "tray.and.arrow.down") {
-                isPresentingBrainDump = true
-            }
-            KSSecondaryButton(title: allTasksTitle, systemImage: "list.bullet", action: onOpenAllTasks)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: KSSpacing.sm) { secondaryButtons }
+            VStack(spacing: KSSpacing.sm) { secondaryButtons }
         }
+    }
+
+    @ViewBuilder
+    private var secondaryButtons: some View {
+        KSSecondaryButton(title: "Brain dump", systemImage: "tray.and.arrow.down") {
+            isPresentingBrainDump = true
+        }
+        KSSecondaryButton(title: allTasksTitle, systemImage: "list.bullet", action: onOpenAllTasks)
+    }
+
+    /// Not dismissible. Until storage works again nothing is being kept, and
+    /// that has to stay in view.
+    private func storeWarningBanner(_ warning: String) -> some View {
+        KSCard {
+            HStack(alignment: .top, spacing: KSSpacing.xs) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(KSColor.accent(.overrun))
+                    .accessibilityHidden(true)
+                Text(warning)
+                    .ksFont(KSFont.caption)
+                    .foregroundStyle(KSColor.textPrimary)
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func noticeBanner(_ notice: String) -> some View {

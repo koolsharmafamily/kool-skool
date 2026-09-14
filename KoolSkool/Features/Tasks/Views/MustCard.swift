@@ -12,9 +12,14 @@ struct MustCard: View {
     let onEdit: () -> Void
     let onRemove: () -> Void
 
+    @ScaledMetric(relativeTo: .title2) private var iconSize: CGFloat = 26
+
     private var showsTitleSeparately: Bool {
         task.startableLabel != task.title
     }
+
+    /// Never below the 44pt minimum, and bigger when the icon grows with text.
+    private var tapSide: CGFloat { max(KSSize.minimumTapTarget, iconSize + 18) }
 
     var body: some View {
         KSCard {
@@ -41,6 +46,11 @@ struct MustCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint(task.isCompleted ? "Already done" : "Starts a session on this")
+                    // The context menu's actions, where VoiceOver can find them.
+                    .accessibilityActions {
+                        Button("Edit", action: onEdit)
+                        Button("Not today", action: onRemove)
+                    }
 
                     if TaskSuggestion.needsSmallerFirstStep(task) {
                         Button(action: onEdit) { nudge }
@@ -60,9 +70,9 @@ struct MustCard: View {
     private var checkbox: some View {
         Button(action: onToggleComplete) {
             Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 26, weight: .semibold))
+                .font(.system(size: iconSize, weight: .semibold))
                 .foregroundStyle(task.isCompleted ? KSColor.accent(.focusing) : KSColor.textTertiary)
-                .frame(width: KSSize.minimumTapTarget, height: KSSize.minimumTapTarget)
+                .frame(width: tapSide, height: tapSide)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -83,11 +93,13 @@ struct MustCard: View {
 struct MustSlotCard: View {
     let action: () -> Void
 
+    @ScaledMetric(relativeTo: .title2) private var iconSize: CGFloat = 26
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: KSSpacing.sm) {
                 Image(systemName: "plus.circle")
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: iconSize, weight: .semibold))
                 Text("Pick something")
                     .ksFont(KSFont.headline)
                 Spacer()

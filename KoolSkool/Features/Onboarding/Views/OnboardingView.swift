@@ -9,6 +9,7 @@ struct OnboardingView: View {
 
     @State private var isPickingTradition = false
     @FocusState private var isEditingFocus: Bool
+    @ScaledMetric(relativeTo: .largeTitle) private var iconSize: CGFloat = 44
 
     private static let starters = ["Studying for an exam", "A work project", "Reading", "Writing"]
 
@@ -179,7 +180,7 @@ struct OnboardingView: View {
     private var notificationStep: some View {
         VStack(alignment: .leading, spacing: KSSpacing.md) {
             Image(systemName: "bell.badge")
-                .font(.system(size: 44, weight: .semibold))
+                .font(.system(size: iconSize, weight: .semibold))
                 .foregroundStyle(KSColor.accent(.ready))
                 .accessibilityHidden(true)
 

@@ -12,11 +12,30 @@ An iOS app for adults with ADHD who need help **starting**, **feeling time pass*
 
 ## Status
 
-**Milestone 10 complete — onboarding, Settings, and data export.**
+**All 11 milestones complete. Milestone 11 was the accessibility audit, the Reduce Motion and Dynamic Type passes, and polish.**
 
 The full loop runs: dump what's in your head, pin up to three for today, break one into steps, say out loud what you're about to do, start a session with something working alongside you and a noise bed running, watch a disc drain while the background warms toward the deadline, glance at it on the Lock Screen without unlocking, get paid for it, take a breath practice on the break, and watch a streak build that forgives two missed days a month without being asked.
 
-Remaining: the accessibility audit and polish pass (Milestone 11).
+Nothing in the spec remains. The next real test is using it on a phone.
+
+### Putting it on your iPhone
+
+The plan is personal use on your own iPhone first, not the App Store. A free Apple ID is enough for that, and there are two routes.
+
+**Without a Mac (from Windows).** Every push to `main` builds an unsigned `KoolSkool-unsigned.ipa`, attached to that run on the [Actions tab](https://github.com/koolsharmafamily/kool-skool/actions) as the `KoolSkool-unsigned-ipa` artifact. A Windows sideloading tool — Sideloadly, or AltStore with AltServer — re-signs it with your Apple ID and installs it over USB.
+
+**With a Mac.** Open the project in Xcode 16, add your Apple ID under Settings › Accounts, pick your Personal Team on both the `KoolSkool` and `KoolSkoolWidgetsExtension` targets, plug in the phone, and run.
+
+What a free Apple ID means either way:
+
+- **The app stops opening after 7 days.** Re-sign and reinstall it. As long as the bundle identifier stays the same, your data stays too. AltStore and Sideloadly can refresh it over Wi-Fi.
+- **Developer Mode** has to be on (Settings › Privacy & Security), and the first launch needs your Apple ID trusted under Settings › General › VPN & Device Management.
+- **At most 3 sideloaded apps at once**, and a limit of 10 new app identifiers a week. Kool Skool uses two — the app and its widget extension — so reinstalling it with the same identifiers doesn't use up more.
+- **The widgets are a Just Start launcher**, because showing real data in them needs the paid-only App Group.
+
+Sideloading tools ask for your Apple ID password in order to sign with it. Some people use a separate Apple ID just for this; that's your call.
+
+**Not yet tried on a real phone.** CI proves the `.ipa` builds and contains the widget extension. Installing it is the first test of how the app actually behaves on a device.
 
 ### Widgets and the App Group — one switch for you to flip
 
@@ -89,6 +108,8 @@ KoolSkool/
 
 KoolSkoolShared/    Compiled into the app and the widget extension. May reference nothing app-only.
 KoolSkoolWidgets/   The widget extension: Live Activity, Dynamic Island, home and Lock Screen widgets
+KoolSkoolUITests/   The accessibility audit: every main screen, at default and XXL text sizes
+scripts/            The accessibility lint CI runs before building
 ```
 
 The dependency rule is one-way: `App` and future feature folders depend on `Domain`. `Persistence` depends on `Domain`. **Nothing depends on `Persistence`** except the composition root, which picks an implementation.
@@ -237,7 +258,7 @@ All reversible, all worth your veto.
 32. **Every sentence waits for enough data.** Two weeks and ten sessions for the time-of-day line, five sessions a block, a week of days on each side for medication. Below that, the screen says how long until it can say something, instead of guessing.
 33. **"About the same" is reported as a finding.** Below a 15% difference the sentence says sessions go equally well whenever, rather than inflating noise into a pattern.
 34. **The medication reminder arrives in M7, not M9.** It is inseparable from notifications, and asking for permission the moment someone switches on a reminder is exactly the "in context, with a reason" the spec wants for onboarding. Milestone 9's session-end backstop reuses whatever was granted here. The toggle only stays on if the reminder is genuinely armed — if permission is refused it flips back off and says why.
-35. **The medication observation is the one to look hardest at.** It reports completion on days with a log against days without, as bare arithmetic, with the caveat inline: a day without a log isn't necessarily a day without it, plenty else changes, and "talk to whoever prescribes it before changing anything". A test fails if the sentence ever says *because*, *helps*, *works*, *should*, or similar. If you'd rather not show it at all, it's one card to delete — nothing else depends on it.
+35. **There is no medication observation.** Milestone 7 built one — completion on days with a log against days without, with the caveat inline — and Milestone 11 removed it at your request. Even as bare arithmetic it invited being read as "my medication works" or "doesn't", the evidence behind it was weak, and it was the part of the app most likely to interest medical-device regulators. The medication log is a log.
 36. **Reflections are marked health-adjacent too.** The spec only names mood, energy and medication. But "what was hard today" and a line of gratitude are journaling, and the conservative default for journaling is the same one.
 37. **Sessions closed after their heartbeat are left out of every chart.** Nobody confirmed what happened in them, and counting them as failures would skew the chart toward whenever someone tends to leave the app running.
 
@@ -292,6 +313,18 @@ All reversible, all worth your veto.
 78. **Changing the health-data switch throws away a file already prepared.** Otherwise the file you share could disagree with the switch you're looking at.
 79. **There is no import.** The spec doesn't ask for one. The file is versioned and reads back — a test proves it — so adding import later is additive, not a format change.
 
+**Accessibility and polish (M11)**
+
+80. **Icons and tap targets grow with your text size.** Icons that used literal point sizes now scale with Dynamic Type through `@ScaledMetric`, tap targets grow with them and never drop below 44pt, and rows of side-by-side buttons stack instead of truncating at large sizes.
+81. **Screens that couldn't scroll now scroll only when they have to.** Session setup, the completion screen and the sit's closing screen were fixed-height stacks that would clip at XXL text. Their content scrolls when it outgrows the screen — at default sizes nothing moves — and the one primary button stays pinned at the bottom. Setup is still one screen with no extra steps.
+82. **Reduce Motion is enforced by CI, not by memory.** `scripts/lint-accessibility.sh` fails the build if an animation bypasses the Reduce Motion aware helpers, if text or an icon uses a literal point size, or if a tap target is reachable only by a gesture VoiceOver can't perform. The few files allowed to animate directly each check Reduce Motion themselves. Two didn't, and now do: the companion's milestone bounce and the breath pacer's rolling digits.
+83. **Long-press menu actions are reachable with VoiceOver.** Edit, Not today and Delete lived only in context menus; they're now VoiceOver actions on the same rows too.
+84. **With VoiceOver running, the celebration waits.** It used to vanish after a second and a half — mid-sentence for anyone having it read aloud. Now it stays until a double-tap.
+85. **The "saved data couldn't be opened" warning is actually shown.** The in-memory fallback from Milestone 1 set a warning that nothing displayed. It's now a banner on Today that can't be dismissed, because until storage works nothing is being kept.
+86. **A real accessibility audit runs on every push.** A UI test walks Today, Settings, export, Insights, a session, the completion screen, the practice library, a sit and onboarding — at the default text size and at XXL — runs Xcode's accessibility audit on each, and keeps a screenshot. Findings are printed to the CI log and attached to the run.
+87. **An app icon.** The spec never mentioned one and the asset catalogue was empty. It's the depleting disc in acid green around the Just Start bolt, drawn in code, so there's no design file to lose.
+88. **An installable build on every push.** For personal use without a Mac or a paid account: an unsigned `.ipa`, re-signed with a free Apple ID on the way onto the phone. See "Putting it on your iPhone".
+
 ---
 
 ## Testing
@@ -314,7 +347,7 @@ All reversible, all worth your veto.
 - **Noise generation** — every bed stays inside full scale and finite, brown reads smoother than pink once normalised by RMS, a zero seed does not lock the generator at silence, filters reset without clicking
 - **Body doubling** — milestones fire once each and do not stack when several bands are skipped at once, soundscapes appear only when both owned and playable, companion state through start, finish and reset
 - **Insights** — block boundaries including the one that wraps midnight, which sessions count, the two-week gate, focus quality drawn only from post-session check-ins, a real difference vs a wobble vs nothing to compare, the calendar's states, today never drawn as a miss
-- **Medication** — the observation stays silent below a week each side, only taken and undeleted logs count, the sentence never offers a reason or advice, the lock-screen text never mentions medication, a refused permission leaves the toggle honestly off
+- **Medication** — one tap logs and a second undoes it, the lock-screen text never mentions medication, a refused permission leaves the toggle honestly off, a reminder is never restored for someone not tracking
 - **Check-ins** — a skipped check-in writes no row, changing an answer updates in place, clearing removes it, keep-going does not carry the old energy reading forward
 - **Breath pacer** — every second of a box cycle lands in the right phase, fullness rises evenly and holds through a hold, the exhale of the sigh outlasts both inhales, twenty minutes of elapsed time changes nothing because nothing accumulates, one haptic per boundary and never two
 - **Practice content** — every attribution is nil, no script or framing contains quotation marks or an attributive verb, every framing says a wandering mind is the practice, ids are stable so reseeding cannot duplicate the catalogue
@@ -332,6 +365,8 @@ All reversible, all worth your veto.
 - **What you said** — agreement, disagreement naming both times, no pattern reported as none, and no advice word in any combination
 - **Export** — health-adjacent records and medication settings left out by default, all of it when asked, deleted records left out, every setting exported somewhere, readable dates, the file reads back, one export at a time, the switch discarding a prepared file
 - **Settings** — every setting survives the store, flipped generically so a new one cannot be forgotten
+- **Accessibility lint** — no animation bypasses Reduce Motion, no literal point sizes, no gesture-only tap targets; runs before the build
+- **Accessibility audit** — Xcode's audit on every main screen and through onboarding, at default and XXL text sizes, with a screenshot of each
 - **Data sensitivity** — the health-adjacent list is pinned
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks

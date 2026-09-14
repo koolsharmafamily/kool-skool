@@ -10,6 +10,7 @@ struct CelebrationOverlay: View {
     let onFinish: () -> Void
 
     @Environment(\.ksReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @State private var hasFinished = false
 
     var body: some View {
@@ -32,16 +33,10 @@ struct CelebrationOverlay: View {
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
 
-                HStack(spacing: KSSpacing.md) {
-                    RollingNumber(target: award.coins, prefix: "+", suffix: " coins")
-                        .ksFont(KSFont.headline)
-                        .foregroundStyle(KSColor.accent(.breakTime))
-
-                    if award.didExtendStreak {
-                        Text(award.streak == 1 ? "Day 1" : "Day \(award.streak)")
-                            .ksFont(KSFont.headline)
-                            .foregroundStyle(KSColor.accent(.overrun))
-                    }
+                // Side by side when they fit, stacked at large text sizes.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: KSSpacing.md) { secondaryRewards }
+                    VStack(spacing: KSSpacing.xs) { secondaryRewards }
                 }
 
                 if let bonusLine {
@@ -58,13 +53,31 @@ struct CelebrationOverlay: View {
         .onTapGesture(perform: finish)
         .task {
             await KSHaptics.shared.celebrate()
+            // With VoiceOver running, the summary needs time to be read aloud,
+            // so it waits for a double-tap instead of vanishing mid-sentence.
+            guard !voiceOverEnabled else { return }
             try? await Task.sleep(for: .seconds(RewardRules.celebrationDuration))
             finish()
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(spokenSummary)
-        .accessibilityHint("Tap to continue")
+        .accessibilityHint("Double-tap to continue")
         .accessibilityAddTraits(.isButton)
+        // The tap gesture is for fingers; this is the same thing for VoiceOver.
+        .accessibilityAction { finish() }
+    }
+
+    @ViewBuilder
+    private var secondaryRewards: some View {
+        RollingNumber(target: award.coins, prefix: "+", suffix: " coins")
+            .ksFont(KSFont.headline)
+            .foregroundStyle(KSColor.accent(.breakTime))
+
+        if award.didExtendStreak {
+            Text(award.streak == 1 ? "Day 1" : "Day \(award.streak)")
+                .ksFont(KSFont.headline)
+                .foregroundStyle(KSColor.accent(.overrun))
+        }
     }
 
     private var bonusLine: String? {

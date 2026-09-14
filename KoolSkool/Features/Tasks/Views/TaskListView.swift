@@ -133,13 +133,16 @@ struct TaskRow: View {
     let onToggleMust: () -> Void
     let onDelete: () -> Void
 
+    @ScaledMetric(relativeTo: .title3) private var checkSize: CGFloat = 22
+    @ScaledMetric(relativeTo: .body) private var starSize: CGFloat = 18
+
     var body: some View {
         HStack(spacing: KSSpacing.sm) {
             Button(action: onToggleComplete) {
                 Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: checkSize, weight: .semibold))
                     .foregroundStyle(task.isCompleted ? KSColor.accent(.focusing) : KSColor.textTertiary)
-                    .frame(width: KSSize.minimumTapTarget, height: KSSize.minimumTapTarget)
+                    .frame(width: max(KSSize.minimumTapTarget, checkSize + 22), height: max(KSSize.minimumTapTarget, checkSize + 22))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -164,12 +167,16 @@ struct TaskRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            // Delete lives in the context menu; this is where VoiceOver finds it.
+            .accessibilityActions {
+                Button("Delete", role: .destructive, action: onDelete)
+            }
 
             Button(action: onToggleMust) {
                 Image(systemName: isMustToday ? "star.fill" : "star")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: starSize, weight: .semibold))
                     .foregroundStyle(isMustToday ? KSColor.accent(.breakTime) : KSColor.textTertiary)
-                    .frame(width: KSSize.minimumTapTarget, height: KSSize.minimumTapTarget)
+                    .frame(width: max(KSSize.minimumTapTarget, starSize + 26), height: max(KSSize.minimumTapTarget, starSize + 26))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

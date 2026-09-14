@@ -29,22 +29,6 @@ struct TimeOfDayInsight: Equatable, Sendable {
     var sentence: String
 }
 
-struct MedicationObservation: Equatable, Sendable {
-    var daysWithLog: Int
-    var daysWithoutLog: Int
-    var completionWithLog: Double
-    var completionWithoutLog: Double
-
-    /// Arithmetic about the user's own log, and nothing else. Never a reason, a
-    /// cause, or a recommendation — that line is the whole of the privacy and
-    /// safety story for this feature.
-    var sentence: String {
-        let with = Int((completionWithLog * 100).rounded())
-        let without = Int((completionWithoutLog * 100).rounded())
-        return "On days you logged it, you completed \(with)% of sessions. On days you didn't, \(without)%."
-    }
-}
-
 enum CalendarDayState: Sendable, Equatable {
     case active
     /// Missed, but a freeze kept the streak alive.
@@ -65,8 +49,13 @@ struct CalendarDay: Identifiable, Equatable, Sendable {
 /// Everything Insights says, computed from history with no state of its own.
 ///
 /// The rule for every function here: say nothing until there is enough to say
-/// something true. Two weeks, ten sessions, five per bucket, seven days per
-/// group. Below those, a "pattern" is the app making things up about someone.
+/// something true. Two weeks, ten sessions, five per bucket. Below those, a
+/// "pattern" is the app making things up about someone.
+///
+/// There is deliberately no medication observation. Milestone 7 compared
+/// sessions on days with and without a log; it was removed in Milestone 11,
+/// because even as bare arithmetic it invited being read as a verdict on
+/// someone's medication. The log is a log.
 enum InsightsCalculator {
 
     static let minimumHistoryDays = 14
@@ -75,7 +64,6 @@ enum InsightsCalculator {
     /// Below this the difference is called "about the same" rather than
     /// dressed up as a finding.
     static let meaningfulLift = 0.15
-    static let minimumDaysPerMedicationGroup = 7
 
     // MARK: Which sessions count
 
@@ -193,54 +181,6 @@ enum InsightsCalculator {
             return "\(said) Your sessions agree."
         }
         return "\(said) So far, your sessions complete most often \(insight.block.whenPhrase)."
-    }
-
-    // MARK: Medication
-
-    /// Completion on days with a medication log against days without one.
-    ///
-    /// "Days without a log" is not "days it wasn't taken" — someone can take it
-    /// and not log it — so the sentence says exactly what was measured and no
-    /// more.
-    static func medicationObservation(
-        sessions: [FocusSession],
-        logs: [MedicationLog],
-        clock: any DateProvider
-    ) -> MedicationObservation? {
-        let loggedDays = Set(
-            logs
-                .filter { $0.taken && !$0.isDeleted }
-                .map { clock.startOfDay(for: $0.timestamp) }
-        )
-
-        var withSessions = 0, withCompleted = 0
-        var withoutSessions = 0, withoutCompleted = 0
-        var withDays = Set<Date>(), withoutDays = Set<Date>()
-
-        for session in countable(sessions) {
-            let day = clock.startOfDay(for: session.startedAt)
-            if loggedDays.contains(day) {
-                withDays.insert(day)
-                withSessions += 1
-                if session.wasCompleted { withCompleted += 1 }
-            } else {
-                withoutDays.insert(day)
-                withoutSessions += 1
-                if session.wasCompleted { withoutCompleted += 1 }
-            }
-        }
-
-        guard withDays.count >= minimumDaysPerMedicationGroup,
-              withoutDays.count >= minimumDaysPerMedicationGroup,
-              withSessions > 0, withoutSessions > 0
-        else { return nil }
-
-        return MedicationObservation(
-            daysWithLog: withDays.count,
-            daysWithoutLog: withoutDays.count,
-            completionWithLog: Double(withCompleted) / Double(withSessions),
-            completionWithoutLog: Double(withoutCompleted) / Double(withoutSessions)
-        )
     }
 
     // MARK: Calendar

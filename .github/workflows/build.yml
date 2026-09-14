@@ -17,7 +17,7 @@ jobs:
   build:
     name: Compile and test
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 50
 
     steps:
       - uses: actions/checkout@v4
@@ -28,9 +28,16 @@ jobs:
           echo "--- simulators ---"
           xcrun simctl list devices available | grep -i "iPhone" || true
 
-      # Builds the app target and the test bundle without needing a booted
-      # simulator, so a compile failure is reported as a compile failure rather
-      # than as a device-not-found error.
+      # Motion through the Reduce Motion helpers, no literal point sizes, no
+      # gesture-only targets. Runs first but never stops the build: its verdict
+      # is enforced at the end, so a lint failure still shows compile results.
+      - name: Accessibility lint
+        id: lint
+        continue-on-error: true
+        run: sh scripts/lint-accessibility.sh
+
+      # Builds the app, the widget extension and both test bundles without a
+      # booted simulator, so a compile failure reports as a compile failure.
       - name: Compile app and tests
         run: |
           set -o pipefail
@@ -56,6 +63,7 @@ jobs:
             -project KoolSkool.xcodeproj \
             -scheme KoolSkool \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee test.log
 
@@ -69,6 +77,19 @@ jobs:
             echo "Tests did not run — the compile step failed first."
           fi
 
+      # Screenshots and accessibility audit reports from the UI tests. For a
+      # project written on Windows, this is the only way to see a screen.
+      - name: Export screenshots and audit reports
+        if: always()
+        run: |
+          if [ -d TestResults.xcresult ]; then
+            mkdir -p ui-evidence
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path ui-evidence || echo "No attachments exported"
+            find ui-evidence -type f | head -100
+          else
+            echo "No result bundle — tests did not run."
+          fi
+
       - name: Keep the logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -79,3 +100,65 @@ jobs:
             test.log
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-evidence
+          path: ui-evidence
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Enforce accessibility lint
+        if: steps.lint.outcome == 'failure'
+        run: |
+          echo "The accessibility lint failed — see its step near the top."
+          exit 1
+
+  device:
+    name: Unsigned iPhone build
+    runs-on: macos-15
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Release configuration, for real devices, with no signing. A sideloading
+      # tool re-signs it with a free Apple ID on the way onto the phone.
+      - name: Archive
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project KoolSkool.xcodeproj \
+            -scheme KoolSkool \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/KoolSkool.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            2>&1 | tee archive.log
+
+      - name: Archive errors
+        if: failure()
+        run: |
+          grep -E "error:" archive.log | sort -u || echo "(no lines matched 'error:')"
+
+      - name: Package the .ipa
+        run: |
+          APP="build/KoolSkool.xcarchive/Products/Applications/KoolSkool.app"
+          test -d "$APP" || { echo "No app in the archive"; exit 1; }
+          test -d "$APP/PlugIns/KoolSkoolWidgetsExtension.appex" || { echo "Widget extension missing from the app"; exit 1; }
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry KoolSkool-unsigned.ipa Payload
+          ls -la KoolSkool-unsigned.ipa
+
+      - name: Keep the .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: KoolSkool-unsigned-ipa
+          path: KoolSkool-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
