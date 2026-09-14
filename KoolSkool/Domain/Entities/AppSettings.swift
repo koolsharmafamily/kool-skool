@@ -16,6 +16,9 @@ struct AppSettings: SyncableRecord, Codable {
     var customWorkMinutes: Int = 30
     var customBreakMinutes: Int = 6
     var keepScreenAwakeDuringSession: Bool = true
+    /// The local-notification backstop for a session that ends while the app is
+    /// not on screen. Only ever fires if notifications are already allowed.
+    var sessionEndAlertsEnabled: Bool = true
 
     // MARK: Time blindness
 

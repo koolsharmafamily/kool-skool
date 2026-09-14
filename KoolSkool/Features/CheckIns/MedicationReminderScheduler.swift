@@ -27,27 +27,11 @@ struct LocalMedicationReminderScheduler: MedicationReminderScheduling {
     init() {}
 
     func requestPermission() async -> Bool {
-        let center = UNUserNotificationCenter.current()
-        let settings = await center.notificationSettings()
-
-        switch settings.authorizationStatus {
-        case .authorized, .provisional, .ephemeral:
-            return true
-        case .denied:
-            return false
-        case .notDetermined:
-            return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
-        @unknown default:
-            return false
-        }
+        await NotificationAuthorization.request()
     }
 
     func isAuthorised() async -> Bool {
-        let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        switch status {
-        case .authorized, .provisional, .ephemeral: return true
-        default: return false
-        }
+        await NotificationAuthorization.status() == .authorised
     }
 
     func schedule(minutesAfterMidnight: Int) async throws {

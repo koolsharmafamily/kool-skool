@@ -27,17 +27,32 @@ struct RootView: View {
                 setupSheet(for: request)
             }
             .task {
-                await engine.restore()
+                // The running session is recovered in `AppEnvironment.bootstrap()`.
                 await makeModelsIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in
                 Task { await engine.scenePhaseChanged(to: phase) }
                 Task { await stillness.scenePhaseChanged(to: phase) }
+                // Permission can change in iOS Settings while the app is away.
+                if phase == .active { Task { await app.refreshNotificationStatus() } }
             }
             .onChange(of: engine.status) { _, status in
+                // A session started from Siri or a widget must not open behind
+                // a sheet that was left up.
+                if status == .running {
+                    setupTask = nil
+                    isPresentingTimeSettings = false
+                }
                 // Coming back from a session, Today may be stale — a task could
                 // have been marked done on the completion screen.
                 if status == .idle { Task { await refreshAll() } }
+                Task { await app.refreshWidgets() }
+            }
+            .onChange(of: app.externalChangeCount) { _, _ in
+                Task { await refreshAll() }
+            }
+            .onOpenURL { url in
+                handle(url)
             }
             .onChange(of: stillness.isRunning) { _, isRunning in
                 // A finished sit moves the calm streak, which Today shows.
@@ -190,6 +205,8 @@ struct RootView: View {
                 TimeSettingsSheet(
                     settings: app.settings,
                     calibration: app.calibration,
+                    notificationStatus: app.notificationStatus,
+                    onRequestNotifications: { Task { await app.requestNotifications() } },
                     onChange: { mutate in Task { await app.updateSettings(mutate) } },
                     onClose: { isPresentingTimeSettings = false }
                 )
@@ -297,6 +314,26 @@ struct RootView: View {
         Task { await engine.start(plan) }
     }
 
+    // MARK: Deep links
+
+    /// Widget and Live Activity taps.
+    ///
+    /// A widget tap can cold-launch the app, so starting goes through the intent
+    /// router, which waits until launch has recovered any session that was
+    /// already running rather than starting a second one over it.
+    private func handle(_ url: URL) {
+        guard let link = DeepLink(url: url) else { return }
+
+        switch link {
+        case .justStart:
+            Task { _ = await IntentRouter.shared.startSession(mode: .justStart) }
+        case .today:
+            path.removeAll()
+        case .session:
+            break
+        }
+    }
+
     // MARK: Models
 
     private func makeModelsIfNeeded() async {
@@ -324,6 +361,7 @@ struct RootView: View {
         if app.settings.medicationTrackingEnabled {
             await app.medication.load()
         }
+        await app.refreshWidgets()
     }
 }
 

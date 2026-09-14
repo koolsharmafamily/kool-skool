@@ -69,15 +69,9 @@ enum KSColor {
     }
 }
 
+// `UIColor(hex:)` lives in `KoolSkoolShared/SharedColor.swift`, so the widget
+// extension draws from the same palette without copying hex values.
 extension UIColor {
-    /// `0xRRGGBB`.
-    convenience init(hex: UInt32, alpha: CGFloat = 1) {
-        let red = CGFloat((hex >> 16) & 0xFF) / 255
-        let green = CGFloat((hex >> 8) & 0xFF) / 255
-        let blue = CGFloat(hex & 0xFF) / 255
-        self.init(red: red, green: green, blue: blue, alpha: alpha)
-    }
-
     /// Linear interpolation in sRGB. Good enough for an ambient wash, and it
     /// avoids pulling in a colour-space dependency.
     func blended(toward other: UIColor, fraction: CGFloat) -> UIColor {

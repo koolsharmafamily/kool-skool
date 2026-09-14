@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The time-blindness controls, on their own.
 ///
@@ -8,10 +9,13 @@ import SwiftUI
 struct TimeSettingsSheet: View {
     let settings: AppSettings
     let calibration: EstimateCalibration
+    var notificationStatus: NotificationStatus = .notDetermined
+    var onRequestNotifications: () -> Void = {}
     let onChange: (@escaping (inout AppSettings) -> Void) -> Void
     let onClose: () -> Void
 
     @State private var isPickingTradition = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
@@ -22,6 +26,7 @@ struct TimeSettingsSheet: View {
                         timeCheckSection
                         calibrationSection
                         companySection
+                        notificationSection
                         checkInSection
                         stillnessSection
                         medicationSection
@@ -177,6 +182,50 @@ struct TimeSettingsSheet: View {
                 Text("Soundscapes keep playing when the screen locks, which means they do not follow the silent switch. Turn them off here or from the session screen.")
                     .ksFont(KSFont.caption)
                     .foregroundStyle(KSColor.textSecondary)
+            }
+        }
+    }
+
+    /// Shows what the system actually allows, not what the setting says. A
+    /// switch that reads "on" while nothing can ever arrive would be a quiet lie.
+    private var notificationSection: some View {
+        KSCard {
+            VStack(alignment: .leading, spacing: KSSpacing.sm) {
+                Text("Notifications")
+                    .ksFont(KSFont.headline)
+                    .foregroundStyle(KSColor.textPrimary)
+
+                switch notificationStatus {
+                case .authorised:
+                    Toggle(isOn: binding(\.sessionEndAlertsEnabled)) {
+                        Text("Tell me when a session ends")
+                            .ksFont(KSFont.body)
+                            .foregroundStyle(KSColor.textPrimary)
+                    }
+
+                    Text("Only matters when the app isn't on screen at the time. The Lock Screen timer shows either way.")
+                        .ksFont(KSFont.caption)
+                        .foregroundStyle(KSColor.textSecondary)
+
+                case .notDetermined:
+                    Text("Kool Skool can tell you when a session ends while you're in another app. It's used for that and for the medication reminder, if you switch one on — nothing else.")
+                        .ksFont(KSFont.caption)
+                        .foregroundStyle(KSColor.textSecondary)
+
+                    KSSecondaryButton(title: "Allow notifications", systemImage: "bell", action: onRequestNotifications)
+
+                case .denied:
+                    Text("Notifications are off for Kool Skool in iOS Settings, so a session that ends while you're elsewhere can't tell you. The Lock Screen timer still works.")
+                        .ksFont(KSFont.caption)
+                        .foregroundStyle(KSColor.textSecondary)
+
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            openURL(url)
+                        }
+                    }
+                    .ksFont(KSFont.label)
+                }
             }
         }
     }

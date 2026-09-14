@@ -12,6 +12,7 @@ final class SDAppSettings {
     var customWorkMinutes: Int = 30
     var customBreakMinutes: Int = 6
     var keepScreenAwakeDuringSession: Bool = true
+    var sessionEndAlertsEnabled: Bool = true
 
     var timeChecksEnabled: Bool = false
     var timeCheckIntervalMinutes: Int = 10
@@ -75,6 +76,7 @@ extension SDAppSettings {
             customWorkMinutes: customWorkMinutes,
             customBreakMinutes: customBreakMinutes,
             keepScreenAwakeDuringSession: keepScreenAwakeDuringSession,
+            sessionEndAlertsEnabled: sessionEndAlertsEnabled,
             timeChecksEnabled: timeChecksEnabled,
             timeCheckIntervalMinutes: timeCheckIntervalMinutes,
             showDigitalTimer: showDigitalTimer,
@@ -102,6 +104,7 @@ extension SDAppSettings {
         customWorkMinutes = dto.customWorkMinutes
         customBreakMinutes = dto.customBreakMinutes
         keepScreenAwakeDuringSession = dto.keepScreenAwakeDuringSession
+        sessionEndAlertsEnabled = dto.sessionEndAlertsEnabled
         timeChecksEnabled = dto.timeChecksEnabled
         timeCheckIntervalMinutes = dto.timeCheckIntervalMinutes
         showDigitalTimer = dto.showDigitalTimer

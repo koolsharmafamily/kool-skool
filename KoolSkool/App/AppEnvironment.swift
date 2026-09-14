@@ -35,6 +35,16 @@ final class AppEnvironment {
     private(set) var calibration = EstimateCalibration.unknown
 
     private(set) var isReady = false
+    /// Read from the system, never assumed. Settings shows the truth.
+    private(set) var notificationStatus: NotificationStatus = .notDetermined
+    /// Bumped when something outside the app's screens — a brain dump from Siri
+    /// — changes data, so whatever is open can refresh.
+    private(set) var externalChangeCount = 0
+
+    private let widgets: any WidgetSnapshotPublishing
+    /// The last picture handed to the widgets. Widget reloads are budgeted by
+    /// the system, so an unchanged picture is not sent twice.
+    @ObservationIgnored private var lastWidgetSnapshot: WidgetSnapshot?
     /// Set when the persistent store could not be opened and the app fell back
     /// to memory. Surfaced to the user rather than swallowed.
     private(set) var storeWarning: String?
@@ -44,13 +54,16 @@ final class AppEnvironment {
         repositories: any RepositoryProvider,
         clock: any DateProvider = SystemDateProvider(),
         haptics: any HapticPerforming = KSHaptics.shared,
-        alerts: any SessionAlertScheduling = NoOpSessionAlertScheduler(),
+        alerts: any SessionAlertScheduling = LocalSessionAlertScheduler(),
         idleGuard: any ScreenIdleGuarding = ScreenIdleGuard(),
         rolls: @escaping @Sendable () -> RewardRolls = { RewardRolls.random() },
         reminders: any MedicationReminderScheduling = LocalMedicationReminderScheduler(),
         practices: any PracticeProvider = BundledPracticeProvider(),
+        liveActivities: any SessionLiveActivityManaging = ActivityKitLiveActivityManager(),
+        widgets: any WidgetSnapshotPublishing = AppGroupWidgetPublisher(),
         storeWarning: String? = nil
     ) {
+        self.widgets = widgets
         self.repositories = repositories
         self.clock = clock
         self.haptics = haptics
@@ -79,7 +92,8 @@ final class AppEnvironment {
             alerts: alerts,
             idleGuard: idleGuard,
             rewards: rewards,
-            bodyDoubling: bodyDoubling
+            bodyDoubling: bodyDoubling,
+            liveActivity: liveActivities
         )
     }
 
@@ -91,6 +105,11 @@ final class AppEnvironment {
             haptics.prepare()
             focusEngine.apply(settings: settings)
             stillness.apply(settings: settings)
+
+            // Recovered here rather than by a screen, and before anything else
+            // that can fail. An App Intent arriving mid-launch waits for this, so
+            // it can never start a second session over one that is still running.
+            await focusEngine.restore()
 
             try await rewards.prepareCatalogue()
             await bodyDoubling.refreshCatalogue()
@@ -111,12 +130,45 @@ final class AppEnvironment {
                 await medication.load()
             }
 
+            await refreshNotificationStatus()
+            await refreshWidgets()
+
             isReady = true
             lastError = nil
         } catch {
             lastError = error.localizedDescription
             isReady = false
         }
+    }
+
+    // MARK: System surfaces
+
+    /// Rebuilds what the widgets show. Reads progress from the store rather than
+    /// the cache, because it is called the moment a session ends — before the
+    /// cache has caught up with the reward that was just paid.
+    func refreshWidgets() async {
+        guard let latest = try? await repositories.progress.progress() else { return }
+        let musts = (try? await repositories.tasks.musts(on: clock.now)) ?? []
+
+        let snapshot = WidgetSnapshot.make(progress: latest, musts: musts, session: focusEngine.session, clock: clock)
+        guard !snapshot.hasSameContent(as: lastWidgetSnapshot) else { return }
+
+        lastWidgetSnapshot = snapshot
+        await widgets.publish(snapshot)
+    }
+
+    func refreshNotificationStatus() async {
+        notificationStatus = await NotificationAuthorization.status()
+    }
+
+    /// Asked from Settings, in answer to a tap on "Allow notifications".
+    func requestNotifications() async {
+        _ = await NotificationAuthorization.request()
+        await refreshNotificationStatus()
+    }
+
+    func noteExternalChange() {
+        externalChangeCount += 1
     }
 
     func refreshProgress() async {
@@ -176,7 +228,7 @@ extension AppEnvironment {
     /// start still works.
     static func live() -> AppEnvironment {
         do {
-            let container = try KoolSkoolSchema.makeContainer()
+            let container = try SharedStore.container.get()
             return AppEnvironment(repositories: SwiftDataRepositoryProvider(container: container))
         } catch {
             let fallbackWarning = """

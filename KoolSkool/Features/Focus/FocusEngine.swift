@@ -35,6 +35,8 @@ final class FocusEngine {
     private let rewards: RewardService
     /// Optional so the engine stays testable without an audio stack.
     private let bodyDoubling: BodyDoublingController?
+    /// The Lock Screen and Dynamic Island timer.
+    private let liveActivity: any SessionLiveActivityManaging
 
     // MARK: Observable state
 
@@ -83,9 +85,11 @@ final class FocusEngine {
         idleGuard: any ScreenIdleGuarding = ScreenIdleGuard(),
         rewards: RewardService? = nil,
         bodyDoubling: BodyDoublingController? = nil,
+        liveActivity: any SessionLiveActivityManaging = NoOpLiveActivityManager(),
         ticksAutomatically: Bool = true
     ) {
         self.bodyDoubling = bodyDoubling
+        self.liveActivity = liveActivity
         self.repositories = repositories
         self.clock = clock
         self.haptics = haptics
@@ -356,7 +360,13 @@ final class FocusEngine {
         timeChecksFired = Int(session.elapsed(asOf: clock.now) / interval)
         startTicking()
         syncIdleGuard()
-        await alerts.scheduleEnd(for: session)
+
+        if settings.sessionEndAlertsEnabled {
+            await alerts.scheduleEnd(for: session)
+        }
+        // Also runs on relaunch mid-session; the manager updates the existing
+        // activity rather than adding a second one.
+        await liveActivity.start(FocusActivityContent.make(for: session, taskTitle: linkedTask?.startableLabel))
     }
 
     private func finish(reason: SessionEndReason, at endDate: Date) async {
@@ -365,6 +375,7 @@ final class FocusEngine {
         stopTicking()
         idleGuard.setKeepAwake(false)
         await alerts.cancelAll()
+        await liveActivity.end(sessionID: current.id)
 
         let elapsed = max(0, endDate.timeIntervalSince(current.startedAt))
 
