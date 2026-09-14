@@ -53,11 +53,15 @@ struct CompanionView: View {
             .frame(width: 76, height: 6)
     }
 
+    /// Secondary grey rather than tertiary: this sits on the session screen's
+    /// ambient wash, which by the end of a session is warm enough to push the
+    /// quietest grey under 4.5:1.
     private var caption: some View {
         Text(captionText)
             .ksFont(KSFont.caption)
-            .foregroundStyle(KSColor.textTertiary)
+            .foregroundStyle(KSColor.textSecondary)
             .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var captionText: String {

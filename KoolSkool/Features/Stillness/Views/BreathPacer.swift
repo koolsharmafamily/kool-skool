@@ -27,7 +27,9 @@ struct BreathPacer: View {
 
     @State private var fullness: Double = 0
 
-    private let diameter: CGFloat = 260
+    /// The largest the form is drawn. It shrinks to fit when a small screen or
+    /// a large text size leaves less room, rather than pushing text off screen.
+    private let maximumDiameter: CGFloat = 260
     /// The form never collapses to nothing. An empty chest is still a chest.
     private let minimumScale: Double = 0.34
 
@@ -39,23 +41,21 @@ struct BreathPacer: View {
         ZStack {
             form
                 .stroke(KSColor.accentWash(.stillness, opacity: 0.35), lineWidth: KSStroke.medium)
-                .frame(width: diameter, height: diameter)
 
             if !reduceMotion {
                 form
                     .fill(KSColor.accentWash(.stillness, opacity: 0.30))
-                    .frame(width: diameter, height: diameter)
                     .scaleEffect(scale)
 
                 form
                     .stroke(KSColor.accent(.stillness), lineWidth: KSStroke.medium)
-                    .frame(width: diameter, height: diameter)
                     .scaleEffect(scale)
             }
 
             instruction
         }
-        .frame(width: diameter, height: diameter)
+        .frame(maxWidth: maximumDiameter, maxHeight: maximumDiameter)
+        .aspectRatio(1, contentMode: .fit)
         .onAppear { fullness = tick.fullness }
         .onChange(of: tick.stepKey) { _, _ in advance() }
         .accessibilityElement(children: .ignore)
@@ -70,7 +70,9 @@ struct BreathPacer: View {
     /// common one for no gain.
     private var form: RoundedRectangle {
         switch shape {
-        case .circle: RoundedRectangle(cornerRadius: diameter / 2, style: .circular)
+        // A radius of at least half the side is a circle at any size the form
+        // shrinks to; SwiftUI clamps it.
+        case .circle: RoundedRectangle(cornerRadius: maximumDiameter / 2, style: .circular)
         case .roundedSquare: RoundedRectangle(cornerRadius: 56, style: .continuous)
         }
     }

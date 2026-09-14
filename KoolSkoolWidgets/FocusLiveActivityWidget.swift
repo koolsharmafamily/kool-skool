@@ -12,7 +12,7 @@ struct FocusLiveActivityWidget: Widget {
         ActivityConfiguration(for: FocusActivityAttributes.self) { context in
             FocusLockScreenView(attributes: context.attributes, state: context.state, isStale: context.isStale)
                 .activityBackgroundTint(WidgetPalette.canvasDark.opacity(0.9))
-                .activitySystemActionForegroundColor(KSEnergyState.focusing.sharedAccent)
+                .activitySystemActionForegroundColor(KSEnergyState.focusing.darkAccent)
                 .widgetURL(DeepLink.session.url)
         } dynamicIsland: { context in
             let accent = FocusActivityStyle.accent(isStale: context.isStale)
@@ -59,8 +59,10 @@ struct FocusLiveActivityWidget: Widget {
 enum FocusActivityStyle {
     /// Green while running, coral once the planned end has passed with the app
     /// closed — the same two states the in-app background moves between.
+    /// Always the dark-mode accents: the Lock Screen activity and the Dynamic
+    /// Island both draw on black.
     static func accent(isStale: Bool) -> Color {
-        (isStale ? KSEnergyState.overrun : KSEnergyState.focusing).sharedAccent
+        (isStale ? KSEnergyState.overrun : KSEnergyState.focusing).darkAccent
     }
 }
 
@@ -123,14 +125,14 @@ struct FocusProgressBar: View {
             EmptyView()
         } else if isStale {
             ProgressView(value: 1)
-                .tint(KSEnergyState.overrun.sharedAccent)
+                .tint(KSEnergyState.overrun.darkAccent)
         } else {
             ProgressView(timerInterval: state.timerRange, countsDown: true) {
                 EmptyView()
             } currentValueLabel: {
                 EmptyView()
             }
-            .tint(KSEnergyState.focusing.sharedAccent)
+            .tint(KSEnergyState.focusing.darkAccent)
         }
     }
 }

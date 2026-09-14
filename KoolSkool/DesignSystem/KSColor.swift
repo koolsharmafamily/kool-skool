@@ -8,25 +8,49 @@ import UIKit
 /// session interpolates between two energy states and needs component access.
 enum KSColor {
 
+    /// Every non-accent colour as light and dark hex values. Kept as numbers as
+    /// well as `Color`s so `ContrastTests` can check the arithmetic.
+    enum Palette {
+        static let canvas = HexPair(light: 0xF7F7FA, dark: 0x0A0A0F)
+        static let surface = HexPair(light: 0xFFFFFF, dark: 0x14141C)
+        static let surfaceRaised = HexPair(light: 0xEFEFF4, dark: 0x1E1E29)
+        static let hairline = HexPair(light: 0xD8D8E0, dark: 0x2A2A38)
+        static let track = HexPair(light: 0xE2E2EA, dark: 0x22222E)
+
+        static let textPrimary = HexPair(light: 0x0B0B10, dark: 0xF5F5F7)
+        static let textSecondary = HexPair(light: 0x55555F, dark: 0xA6A6B4)
+        /// Deepened in Milestone 11. The old light value, 0x76767F, measured
+        /// about 4.15:1 on the canvas — under the 4.5:1 that 15pt text needs.
+        static let textTertiary = HexPair(light: 0x66666F, dark: 0x8A8A99)
+
+        static let onLight: UInt32 = 0x0B0B10
+        static let onDark: UInt32 = 0xF5F5F7
+    }
+
+    struct HexPair: Sendable, Equatable {
+        let light: UInt32
+        let dark: UInt32
+    }
+
     // MARK: Surfaces
 
-    static let canvas = dynamic(light: 0xF7F7FA, dark: 0x0A0A0F)
-    static let surface = dynamic(light: 0xFFFFFF, dark: 0x14141C)
-    static let surfaceRaised = dynamic(light: 0xEFEFF4, dark: 0x1E1E29)
-    static let hairline = dynamic(light: 0xD8D8E0, dark: 0x2A2A38)
+    static let canvas = dynamic(Palette.canvas)
+    static let surface = dynamic(Palette.surface)
+    static let surfaceRaised = dynamic(Palette.surfaceRaised)
+    static let hairline = dynamic(Palette.hairline)
 
     /// The unfilled remainder of the depleting disc.
-    static let track = dynamic(light: 0xE2E2EA, dark: 0x22222E)
+    static let track = dynamic(Palette.track)
 
     // MARK: Text
 
-    static let textPrimary = dynamic(light: 0x0B0B10, dark: 0xF5F5F7)
-    static let textSecondary = dynamic(light: 0x55555F, dark: 0xA6A6B4)
-    /// Still passes contrast at 15pt, which is the floor for this app.
-    static let textTertiary = dynamic(light: 0x76767F, dark: 0x8A8A99)
+    static let textPrimary = dynamic(Palette.textPrimary)
+    static let textSecondary = dynamic(Palette.textSecondary)
+    /// The quietest text. Still at least 4.5:1 on every surface, in both modes.
+    static let textTertiary = dynamic(Palette.textTertiary)
 
-    static let onLight = Color(uiColor: UIColor(hex: 0x0B0B10))
-    static let onDark = Color(uiColor: UIColor(hex: 0xF5F5F7))
+    static let onLight = Color(uiColor: UIColor(hex: Palette.onLight))
+    static let onDark = Color(uiColor: UIColor(hex: Palette.onDark))
 
     // MARK: Energy accents
 
@@ -40,9 +64,20 @@ enum KSColor {
         accent(state).opacity(opacity)
     }
 
-    /// The correct text colour to sit on top of an accent fill.
+    /// The text colour on an accent fill.
+    ///
+    /// Decided by the appearance, not the accent. Every light-mode accent is
+    /// deep enough for light text and every dark-mode accent bright enough for
+    /// dark text, each pairing at least 4.5:1 — `ContrastTests` holds that. The
+    /// old rule put light text on dark mode's blue and coral, about 3:1. The
+    /// state stays a parameter so an accent that ever breaks the rule has
+    /// somewhere to be handled.
     static func onAccent(_ state: KSEnergyState) -> Color {
-        state.prefersDarkForeground ? onLight : onDark
+        dynamic(light: onAccentHex(dark: false), dark: onAccentHex(dark: true))
+    }
+
+    static func onAccentHex(dark: Bool) -> UInt32 {
+        dark ? Palette.onLight : Palette.onDark
     }
 
     /// Continuous blend between two energy states.
@@ -61,6 +96,10 @@ enum KSColor {
     }
 
     // MARK: Construction
+
+    static func dynamic(_ pair: HexPair) -> Color {
+        dynamic(light: pair.light, dark: pair.dark)
+    }
 
     static func dynamic(light: UInt32, dark: UInt32) -> Color {
         Color(uiColor: UIColor { traits in

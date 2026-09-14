@@ -32,6 +32,10 @@ struct ActiveSessionView: View {
 
                 DepletingDisc(snapshot: snapshot, showsDigits: showsDigits)
                     .frame(maxWidth: 320)
+                    // Sized before the spacers, so the disc is as big as the
+                    // screen allows and shrinks only when text needs the room —
+                    // never the other way round.
+                    .layoutPriority(1)
 
                 Spacer(minLength: KSSpacing.sm)
                 footer
@@ -67,18 +71,24 @@ struct ActiveSessionView: View {
                     .ksFont(KSFont.headline)
                     .foregroundStyle(KSColor.textPrimary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
+            // Primary text, not a quieter grey: by the end of a session the
+            // ambient wash at the top of the screen is warm enough that the
+            // quieter greys drop below 4.5:1. Size keeps the hierarchy instead.
             if !snapshot.session.intent.isEmpty {
                 Text(snapshot.session.intent)
                     .ksFont(KSFont.body)
-                    .foregroundStyle(KSColor.textSecondary)
+                    .foregroundStyle(KSColor.textPrimary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             } else if let intention, !intention.isEmpty {
                 Text(intention)
                     .ksFont(KSFont.body)
-                    .foregroundStyle(KSColor.textTertiary)
+                    .foregroundStyle(KSColor.textPrimary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity)
@@ -95,8 +105,9 @@ struct ActiveSessionView: View {
 
             Text(reassurance)
                 .ksFont(KSFont.caption)
-                .foregroundStyle(KSColor.textTertiary)
+                .foregroundStyle(KSColor.textSecondary)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

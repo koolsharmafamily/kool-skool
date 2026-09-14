@@ -8,12 +8,14 @@ enum UITesting {
     static let flag = "-KSUITesting"
     static let onboardingFlag = "-KSUITestingOnboarding"
     static let reduceMotionFlag = "-KSUITestingReduceMotion"
+    static let darkFlag = "-KSUITestingDark"
 
     private static var arguments: [String] { ProcessInfo.processInfo.arguments }
 
     static var isActive: Bool { arguments.contains(flag) }
     static var showsOnboarding: Bool { arguments.contains(onboardingFlag) }
     static var reducesMotion: Bool { arguments.contains(reduceMotionFlag) }
+    static var forcesDark: Bool { arguments.contains(darkFlag) }
 }
 
 extension AppEnvironment {

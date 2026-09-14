@@ -34,7 +34,10 @@ struct KSRatingRow: View {
                     }
                     .ksFont(KSFont.caption)
                     .foregroundStyle(KSColor.textTertiary)
-                    .accessibilityHidden(true)
+                    // Read once, as what the ends of the scale mean. Hidden, it
+                    // was text on screen that VoiceOver users never got.
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(scaleDescription)
                 }
             }
         }
@@ -44,6 +47,16 @@ struct KSRatingRow: View {
         Text(title)
             .ksFont(KSFont.label)
             .foregroundStyle(KSColor.textSecondary)
+    }
+
+    /// "1 is Rough, 5 is Went well".
+    private var scaleDescription: String {
+        [
+            lowLabel.isEmpty ? nil : "1 is \(lowLabel)",
+            highLabel.isEmpty ? nil : "5 is \(highLabel)",
+        ]
+        .compactMap { $0 }
+        .joined(separator: ", ")
     }
 
     private var pips: some View {

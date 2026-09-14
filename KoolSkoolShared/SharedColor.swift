@@ -23,4 +23,13 @@ extension KSEnergyState {
             UIColor(hex: state.accentHex(dark: traits.userInterfaceStyle == .dark))
         })
     }
+
+    /// The dark-mode accent, whatever the system appearance.
+    ///
+    /// For surfaces that are always dark: the Live Activity's own background
+    /// and the Dynamic Island. The light-mode accents are deepened for light
+    /// backgrounds and would read poorly on black.
+    var darkAccent: Color {
+        Color(uiColor: UIColor(hex: accentDarkHex))
+    }
 }

@@ -108,7 +108,7 @@ KoolSkool/
 
 KoolSkoolShared/    Compiled into the app and the widget extension. May reference nothing app-only.
 KoolSkoolWidgets/   The widget extension: Live Activity, Dynamic Island, home and Lock Screen widgets
-KoolSkoolUITests/   The accessibility audit: every main screen, at default and XXL text sizes
+KoolSkoolUITests/   The accessibility audit: every main screen, at default and XXL text sizes and in dark mode
 scripts/            The accessibility lint CI runs before building
 ```
 
@@ -321,9 +321,16 @@ All reversible, all worth your veto.
 83. **Long-press menu actions are reachable with VoiceOver.** Edit, Not today and Delete lived only in context menus; they're now VoiceOver actions on the same rows too.
 84. **With VoiceOver running, the celebration waits.** It used to vanish after a second and a half — mid-sentence for anyone having it read aloud. Now it stays until a double-tap.
 85. **The "saved data couldn't be opened" warning is actually shown.** The in-memory fallback from Milestone 1 set a warning that nothing displayed. It's now a banner on Today that can't be dismissed, because until storage works nothing is being kept.
-86. **A real accessibility audit runs on every push.** A UI test walks Today, Settings, export, Insights, a session, the completion screen, the practice library, a sit and onboarding — at the default text size and at XXL — runs Xcode's accessibility audit on each, and keeps a screenshot. Findings are printed to the CI log and attached to the run.
+86. **A real accessibility audit runs on every push.** A UI test walks Today, Settings, export, Insights, a session, the completion screen, the practice library, a sit and onboarding — at the default text size, at XXL and in dark mode — runs Xcode's accessibility audit on each, and keeps a screenshot. Findings are printed to the CI log and attached to the run.
 87. **An app icon.** The spec never mentioned one and the asset catalogue was empty. It's the depleting disc in acid green around the Just Start bolt, drawn in code, so there's no design file to lose.
 88. **An installable build on every push.** For personal use without a Mac or a paid account: an unsigned `.ipa`, re-signed with a free Apple ID on the way onto the phone. See "Putting it on your iPhone".
+89. **The audit's first run changed the palette.** It ran in light mode and found the tertiary grey at about 4.15:1 on the canvas — under the 4.5:1 that text this size needs — with the green, amber and coral accents close to the line. Those four light-mode colours are deeper now. Dark mode keeps its colours.
+90. **Text on an accent fill follows the appearance, not the accent.** Light text on every light-mode accent, dark text on every dark-mode accent. The old rule put light text on dark mode's electric blue and hot coral, which measured about 3:1. This is the most visible change: in dark mode the Just start button's label is now near-black on blue. `ContrastTests` checks every text-and-background pairing the design system uses, in both modes, on every run — and the audit now runs in dark mode too, because dark mode is the primary design and simulators start in light.
+91. **The Lock Screen timer and Dynamic Island always use the dark-mode accents.** They draw on black whatever the phone's appearance, and the deepened light-mode colours would read poorly there.
+92. **Onboarding's small targets are full-size now.** Back, "Not now" and "I'll look around first" were tappable only on their letters, and the step dots were an 8pt-tall element.
+93. **The session disc and the breath pacer give way to text, not the other way round.** A shape between two spacers competes with them for space, so the captions under the disc were being squeezed. Both shapes are now sized first — as large as the screen allows — and shrink only when the text around them needs the room.
+94. **The session screen's text holds up at the end of a session.** By then the ambient wash warms the background enough that the quieter greys drop below 4.5:1, so the intent and morning intention use primary text and the captions the secondary grey.
+95. **Settings lists the session modes as rows.** A sideways-scrolling strip of chips pushed modes off the edge of the screen at large text sizes.
 
 ---
 
@@ -366,7 +373,8 @@ All reversible, all worth your veto.
 - **Export** — health-adjacent records and medication settings left out by default, all of it when asked, deleted records left out, every setting exported somewhere, readable dates, the file reads back, one export at a time, the switch discarding a prepared file
 - **Settings** — every setting survives the store, flipped generically so a new one cannot be forgotten
 - **Accessibility lint** — no animation bypasses Reduce Motion, no literal point sizes, no gesture-only tap targets; runs before the build
-- **Accessibility audit** — Xcode's audit on every main screen and through onboarding, at default and XXL text sizes, with a screenshot of each
+- **Accessibility audit** — Xcode's audit on every main screen and through onboarding, at default and XXL text sizes, and the main screens again in dark mode, with a screenshot of each
+- **Colour contrast** — every text colour on every surface, accent text on the canvas and cards, and text on every accent fill, all at 4.5:1 or better in both modes
 - **Data sensitivity** — the health-adjacent list is pinned
 - **Day arithmetic** — spring forward, fall back, midnight rollover, timezone shift
 - **Repositories** — round-trips, soft delete cascade, the rule-of-three cap, singleton rows, reseeding without losing unlocks

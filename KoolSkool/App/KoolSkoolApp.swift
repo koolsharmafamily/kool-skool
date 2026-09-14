@@ -10,6 +10,16 @@ struct KoolSkoolApp: App {
         NotificationPresenter.install()
     }
 
+    /// Nil in normal use, so the app follows the system appearance. The UI
+    /// tests set it to audit dark mode, the app's primary design.
+    private var colorSchemeOverride: ColorScheme? {
+        #if DEBUG
+        return UITesting.forcesDark ? .dark : nil
+        #else
+        return nil
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -17,6 +27,7 @@ struct KoolSkoolApp: App {
                 // The in-app Reduce Motion switch layers on top of the system
                 // one; `ksReduceMotion` is the OR of the two.
                 .ksReduceMotionOverride(appEnvironment.settings.reduceMotionOverride)
+                .preferredColorScheme(colorSchemeOverride)
                 .task {
                     #if DEBUG
                     if UITesting.isActive {

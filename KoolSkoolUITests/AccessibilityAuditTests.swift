@@ -1,7 +1,8 @@
 import XCTest
 
 /// Walks the main screens, runs Xcode's accessibility audit on each, and keeps a
-/// screenshot of every one — at the default text size and at XXL.
+/// screenshot of every one — at the default text size, at XXL, and in dark mode,
+/// which is the app's primary design and not what a simulator starts in.
 ///
 /// The project is written on Windows with no simulator, so these screenshots
 /// are how anyone working on it sees a screen at all. Each screen's audit
@@ -25,6 +26,11 @@ final class AccessibilityAuditTests: XCTestCase {
     }
 
     @MainActor
+    func testMainScreensInDarkMode() throws {
+        try walkMainScreens(textSize: nil, tag: "dark", dark: true)
+    }
+
+    @MainActor
     func testOnboardingAtDefaultSize() throws {
         try walkOnboarding(textSize: nil, tag: "default")
     }
@@ -35,8 +41,8 @@ final class AccessibilityAuditTests: XCTestCase {
     }
 
     @MainActor
-    private func walkMainScreens(textSize: String?, tag: String) throws {
-        let app = launch(textSize: textSize)
+    private func walkMainScreens(textSize: String?, tag: String, dark: Bool = false) throws {
+        let app = launch(textSize: textSize, dark: dark)
 
         XCTAssertTrue(button(app, containing: "Just start").waitForExistence(timeout: 30), "Today never appeared")
         try record(app, "today", tag)
@@ -71,6 +77,10 @@ final class AccessibilityAuditTests: XCTestCase {
         justStart.tap()
         let endEarly = button(app, containing: "End early")
         XCTAssertTrue(endEarly.waitForExistence(timeout: 10), "The session screen never appeared")
+        // The session screen never stops animating, so the test runner never
+        // sees the app go idle. Without a pause the audit lands mid-transition
+        // and reports the outgoing screen overlapping the incoming one.
+        sleep(2)
         try record(app, "session", tag)
 
         // Past the ten-second floor, so the session is kept and the completion
@@ -98,6 +108,9 @@ final class AccessibilityAuditTests: XCTestCase {
         XCTAssertTrue(oneMinute.waitForExistence(timeout: 10), "The practice lengths never appeared")
         oneMinute.tap()
         XCTAssertTrue(button(app, containing: "End").waitForExistence(timeout: 10), "The sit never started")
+        // Same as the session: the pacer never stops moving, so wait out the
+        // slow crossfade into stillness before auditing.
+        sleep(2)
         try record(app, "sit", tag)
     }
 
@@ -127,11 +140,14 @@ final class AccessibilityAuditTests: XCTestCase {
     // MARK: Helpers
 
     @MainActor
-    private func launch(textSize: String?, onboarding: Bool = false) -> XCUIApplication {
+    private func launch(textSize: String?, onboarding: Bool = false, dark: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-KSUITesting"]
         if onboarding {
             app.launchArguments += ["-KSUITestingOnboarding"]
+        }
+        if dark {
+            app.launchArguments += ["-KSUITestingDark"]
         }
         if let textSize {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", textSize]

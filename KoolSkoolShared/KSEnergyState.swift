@@ -30,27 +30,21 @@ enum KSEnergyState: String, CaseIterable, Sendable, Identifiable {
         }
     }
 
+    /// Deepened in Milestone 11 so accent text reads at 4.5:1 or better on light
+    /// surfaces, and light text reads on an accent fill. Green, amber and coral
+    /// were the three below the line.
     var accentLightHex: UInt32 {
         switch self {
         case .ready: 0x1F4FE0
-        case .focusing: 0x4E8C00
-        case .breakTime: 0xB06A00
-        case .overrun: 0xD11F36
+        case .focusing: 0x3D6E00
+        case .breakTime: 0x8A5200
+        case .overrun: 0xB0182C
         case .stillness: 0x4238C7
         }
     }
 
     func accentHex(dark: Bool) -> UInt32 {
         dark ? accentDarkHex : accentLightHex
-    }
-
-    /// Whether text sitting on top of the accent should be dark.
-    /// Acid green and warm amber are far too bright for white text.
-    var prefersDarkForeground: Bool {
-        switch self {
-        case .focusing, .breakTime: true
-        case .ready, .overrun, .stillness: false
-        }
     }
 
     /// Stillness moves slowly and quietly. Everything else is allowed to snap.

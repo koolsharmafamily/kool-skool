@@ -8,6 +8,9 @@ import SwiftUI
 struct StreakCalendarView: View {
     let days: [CalendarDay]
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .subheadline) private var swatchSize: CGFloat = 12
+
     private let columns = Array(repeating: GridItem(.flexible(), spacing: KSSpacing.xs), count: 7)
 
     var body: some View {
@@ -39,13 +42,16 @@ struct StreakCalendarView: View {
         return Array(symbols[first...] + symbols[..<first])
     }
 
-    /// One line when it fits; a column at large text sizes rather than clipped.
+    /// One line normally, a column at accessibility text sizes. Switched with
+    /// `AnyLayout`, so the labels stay the same views and keep scaling smoothly
+    /// across the change instead of being rebuilt as a second copy.
     private var legend: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: KSSpacing.md) { legendItems }
-            VStack(alignment: .leading, spacing: KSSpacing.xs) { legendItems }
-        }
-        .accessibilityElement(children: .combine)
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: KSSpacing.xs))
+            : AnyLayout(HStackLayout(spacing: KSSpacing.md))
+
+        return layout { legendItems }
+            .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
@@ -59,10 +65,11 @@ struct StreakCalendarView: View {
         HStack(spacing: KSSpacing.xxs) {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(colour)
-                .frame(width: 12, height: 12)
+                .frame(width: swatchSize, height: swatchSize)
             Text(label)
                 .ksFont(KSFont.caption)
                 .foregroundStyle(KSColor.textSecondary)
+                .fixedSize()
         }
     }
 }

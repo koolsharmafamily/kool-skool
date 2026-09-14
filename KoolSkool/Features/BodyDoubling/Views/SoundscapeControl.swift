@@ -21,7 +21,9 @@ struct SoundscapeControl: View {
                 Text(label)
             }
             .ksFont(KSFont.label)
-            .foregroundStyle(controller.isPlayingAudio ? KSColor.accent(energyState) : KSColor.textTertiary)
+            // Secondary, not tertiary: the session screen's ambient wash warms
+            // the background enough to push the quietest grey under 4.5:1.
+            .foregroundStyle(controller.isPlayingAudio ? KSColor.accent(energyState) : KSColor.textSecondary)
             .padding(.horizontal, KSSpacing.sm)
             .frame(minHeight: KSSize.minimumTapTarget)
             .contentShape(Rectangle())

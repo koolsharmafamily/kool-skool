@@ -79,17 +79,11 @@ struct SettingsSectionView: View {
             VStack(alignment: .leading, spacing: KSSpacing.sm) {
                 cardTitle("Setup opens on")
 
-                ScrollView(.horizontal) {
-                    HStack(spacing: KSSpacing.xs) {
-                        ForEach(SessionMode.pickerOrder) { mode in
-                            chip(mode.displayName, isSelected: settings.defaultMode == mode) {
-                                onChange { $0.defaultMode = mode }
-                            }
-                        }
+                VStack(spacing: KSSpacing.xs) {
+                    ForEach(SessionMode.pickerOrder) { mode in
+                        modeRow(mode)
                     }
-                    .padding(.horizontal, 1)
                 }
-                .scrollIndicators(.hidden)
 
                 caption("The Just Start button on Today always starts Just Start. This is what the setup screen picks for you — except for a task you've marked hard to start, which still opens on Just Start.")
             }
@@ -391,22 +385,40 @@ struct SettingsSectionView: View {
         }
     }
 
-    private func chip(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button {
+    /// A row per mode rather than a sideways-scrolling strip of chips: at large
+    /// text sizes the strip pushed modes off the edge, where they're easy to miss.
+    private func modeRow(_ mode: SessionMode) -> some View {
+        let isSelected = settings.defaultMode == mode
+
+        return Button {
             KSHaptics.shared.fire(.selection)
-            action()
+            onChange { $0.defaultMode = mode }
         } label: {
-            Text(title)
-                .ksFont(KSFont.label)
-                .padding(.horizontal, KSSpacing.md)
-                .frame(minHeight: KSSize.minimumTapTarget)
+            HStack(spacing: KSSpacing.sm) {
+                VStack(alignment: .leading, spacing: KSSpacing.xxs) {
+                    Text(mode.displayName)
+                        .ksFont(KSFont.bodyEmphasis)
+                        .foregroundStyle(KSColor.textPrimary)
+                    Text(mode.tagline)
+                        .ksFont(KSFont.caption)
+                        .foregroundStyle(KSColor.textSecondary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? KSColor.accent(.ready) : KSColor.textTertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(KSSpacing.sm)
+            .frame(maxWidth: .infinity, minHeight: KSSize.minimumTapTarget, alignment: .leading)
+            .background(KSColor.surfaceRaised, in: RoundedRectangle(cornerRadius: KSRadius.md, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(isSelected ? KSColor.onAccent(.ready) : KSColor.textPrimary)
-        .background(
-            isSelected ? KSColor.accent(.ready) : KSColor.surfaceRaised,
-            in: Capsule(style: .continuous)
-        )
+        .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 

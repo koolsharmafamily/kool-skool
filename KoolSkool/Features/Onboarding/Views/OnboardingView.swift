@@ -59,6 +59,8 @@ struct OnboardingView: View {
                     Label("Back", systemImage: "chevron.left")
                         .ksFont(KSFont.label)
                         .frame(minHeight: KSSize.minimumTapTarget)
+                        // A plain button is tappable only where it draws.
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(KSColor.textSecondary)
@@ -79,6 +81,9 @@ struct OnboardingView: View {
                     .frame(width: index == model.stepNumber - 1 ? 24 : 8, height: 8)
             }
         }
+        // The dots are 8pt tall; the element around them is a full 44pt.
+        .frame(minHeight: KSSize.minimumTapTarget)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Step \(model.stepNumber) of \(model.stepCount)")
     }
@@ -136,13 +141,23 @@ struct OnboardingView: View {
             heading("What do you want to focus on?")
             detail("One thing is plenty. It'll be pinned to Today, and your first session will be on it.")
 
-            TextField("Revise chapter four", text: $model.focusText)
+            // Wraps instead of clipping a long answer or a large text size.
+            TextField("Revise chapter four", text: $model.focusText, axis: .vertical)
                 .ksFont(KSFont.headline)
                 .foregroundStyle(KSColor.textPrimary)
                 .textInputAutocapitalization(.sentences)
+                .lineLimit(1...3)
                 .submitLabel(.next)
                 .focused($isEditingFocus)
                 .onSubmit(next)
+                .onChange(of: model.focusText) { _, text in
+                    // A wrapping field turns Return into a newline. A task title
+                    // has no use for one, so Return moves on instead, as it would
+                    // in a single-line field.
+                    guard text.contains("\n") else { return }
+                    model.focusText = text.replacingOccurrences(of: "\n", with: "")
+                    next()
+                }
                 .padding(KSSpacing.md)
                 .background(KSColor.surface, in: RoundedRectangle(cornerRadius: KSRadius.md, style: .continuous))
                 .overlay(
@@ -152,7 +167,8 @@ struct OnboardingView: View {
                 .accessibilityLabel("What you want to focus on")
 
             // A blank field is a blank page. A starter takes the edge off it.
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: KSSpacing.xs) {
+            // One column, so no starter is squeezed at large text sizes.
+            VStack(spacing: KSSpacing.xs) {
                 ForEach(Self.starters, id: \.self) { starter in
                     choiceChip(starter, isSelected: model.focusText == starter) {
                         model.focusText = model.focusText == starter ? "" : starter
@@ -262,6 +278,9 @@ struct OnboardingView: View {
                 Text("Change")
                     .ksFont(KSFont.label)
                     .foregroundStyle(KSColor.accent(.ready))
+                    // Never truncated; the label beside it wraps instead.
+                    .fixedSize()
+                    .layoutPriority(1)
             }
             .padding(KSSpacing.md)
             .background(KSColor.surface, in: RoundedRectangle(cornerRadius: KSRadius.md, style: .continuous))
@@ -280,6 +299,7 @@ struct OnboardingView: View {
             Text(title)
                 .ksFont(KSFont.label)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, KSSpacing.sm)
                 .frame(maxWidth: .infinity, minHeight: KSSize.minimumTapTarget)
         }
@@ -312,6 +332,8 @@ struct OnboardingView: View {
             Text(title)
                 .ksFont(KSFont.label)
                 .frame(maxWidth: .infinity, minHeight: KSSize.minimumTapTarget)
+                // A plain button is tappable only where it draws.
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(KSColor.textSecondary)

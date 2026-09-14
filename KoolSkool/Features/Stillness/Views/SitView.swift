@@ -40,6 +40,7 @@ struct SitView: View {
             Text(run.title)
                 .ksFont(KSFont.headline)
                 .foregroundStyle(KSColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
 
             if run.isBreak {
                 Text("Break")
@@ -58,6 +59,9 @@ struct SitView: View {
                 BreathPacer(tick: breathTick, shape: .forPractice(practice.type))
                 StillnessTimerRing(progress: progress, remaining: remaining, isCompact: true)
             }
+            // Sized before the spacers, so the pacer is as large as the screen
+            // allows; it shrinks only when the text around it needs the room.
+            .layoutPriority(1)
         } else {
             VStack(spacing: KSSpacing.xl) {
                 StillnessTimerRing(progress: progress, remaining: remaining, isCompact: false)
@@ -94,6 +98,7 @@ struct SitView: View {
                 .ksFont(KSFont.caption)
                 .foregroundStyle(KSColor.textTertiary)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
