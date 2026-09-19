@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans antialiased min-h-screen select-none touch-manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Custom scrollbars & smooth transitions */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+
+/* Disc timer pulse animation */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.98); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 4s ease-in-out infinite;
+}
